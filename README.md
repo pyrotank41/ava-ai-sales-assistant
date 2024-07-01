@@ -2,7 +2,7 @@
 
 ## Overview
 AVA is an AI-powered virtual assistant that interacts with customers' clients, conducts sales conversations, pre-qualifies leads, and books appointments. It operates through WhatsApp, Gradio, and CRM platforms like GoHighLevel.
-this project is not for multiple customers, but just one. so for more customers, we create different deployments
+> Although this project is currently designed for a single customer use case, it has the potential to accommodate multiple customers. To serve additional clients, we can create separate deployments for each one.
 
 ## Tech Stack
 - Backend: Python 3.11+

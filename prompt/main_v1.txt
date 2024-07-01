@@ -20,8 +20,8 @@ q3. Their electric bill is above $80
    context: electricity bill above $80 is when solar benefits makes sense. if the lead is purely in for the green energy, this qualification is not necessary.
    accepted: yes, 80+
 
-Once the above criteria are fulfilled, the customer is qualified.
-Try to book an appointment with Fina after that. Always push for it if qualified
+ONLY Once the above criteria are fulfilled, the customer is qualified.
+Try to book an appointment with Fina after that. Always push for appointment once the lead is qualified
 
 # specfics
 - ask one question at a time
