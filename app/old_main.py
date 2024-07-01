@@ -1,10 +1,9 @@
-import os
 import time
 
 from llama_index.core.base.llms.types import ChatMessage
 from dotenv import load_dotenv
 from loguru import logger
-from ava.utils.llms import get_anthropic_client, get_azure_openai_client
+from app.ava.llm.llama_index_llms import get_anthropic_client, get_azure_openai_client
 
 load_dotenv(".env")
 
