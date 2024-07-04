@@ -4,3 +4,4 @@
 secrets/*
 credentials.json
 token.json
+.config/*
