@@ -1,7 +1,7 @@
-import json
-import time
+import os
 import timeit
-from typing import List, Optional
+from typing import List
+import json
 
 from llama_index.core.base.llms.types import ChatMessage, ChatResponse
 from dotenv import load_dotenv
@@ -48,25 +48,59 @@ class Ava:
             logger.error("user_message must be an instance of ChatMessage")
 
         logger.info(f"User message: {user_message.content}")
-        # get objection handelling response
-        objection_handelling_resp = self.objection_handelling_retriver.retrieve(
-            user_message.content
-        )
-        template = "I found these objections related to the query:\n{objections}"
-        obj_str = ""
-        for i, obj in enumerate(objection_handelling_resp):
-            obj_str += (
-                f"Objection {i}: {obj.text}\nRebuttal:{obj.metadata['rebuttal']}\n\n"
-            )
+        system_message = self.system_message
 
-        logger.debug(template.format(objections=obj_str))
-        system_message = (
-            self.system_message + "\n" + template.format(objections=obj_str)
+        messages_for_obj_check = [
+            ChatMessage(
+                role="system",
+                content="is the following message an objection?, respond with `True` or `False`",
+            )
+        ]
+        if message_history is not None: messages_for_obj_check += message_history
+        messages_for_obj_check.append(user_message)
+            
+        obj_resp = self.llm.chat(
+            messages_for_obj_check
         )
+        logger.info(f"obj_resp: {obj_resp.message.content}")
+
+        # check if th user message is a objection.
+        if "True" in obj_resp.message.content:
+            # get objection handelling response
+            objection_handelling_resp = self.objection_handelling_retriver.retrieve(
+                user_message.content
+            )
+            # postprecessing nodes
+            from llama_index.core.postprocessor import SimilarityPostprocessor
+            processors = [
+                SimilarityPostprocessor(similarity_cutoff=0.5),
+            ]
+
+            filtered_nodes = []
+            for node in objection_handelling_resp:
+                logger.debug(node)
+
+            for processor in processors:
+                logger.debug(f"Postprocessing with {processor.__class__.__name__}")
+                filtered_nodes = processor.postprocess_nodes(objection_handelling_resp, query_str=user_message.content)
+                logger.debug(f"Postprocessing dropped {len(filtered_nodes)} nodes")
+
+            if len(filtered_nodes) > 0:
+                template = "I found these objections related to the query:\n{objections}"
+                obj_str = ""
+                for i, obj in enumerate(objection_handelling_resp):
+                    obj_str += (
+                        f"Objection {i+1}: {obj.text}\nRebuttal:{obj.metadata['rebuttal']}\n\n"
+                    )
+
+                logger.debug(template.format(objections=obj_str))
+                system_message = "\n" + template.format(objections=obj_str)
+
         messages = [ChatMessage(role="system", content=system_message)]
         if message_history:
             messages += message_history
         messages.append(user_message)
+        logger.debug(f"All messages: {json.dumps([message.dict() for message in messages], indent=4)}")
 
         resp = self._get_chat_response(messages=messages)
         logger.info(f"AVA response: {resp.message.content}")

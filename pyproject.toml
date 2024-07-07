@@ -23,6 +23,7 @@ llama-index-readers-file = "^0.1.25"
 qdrant-client = "^1.9.2"
 llama-index-readers-google = "^0.2.9"
 llama-index-embeddings-azure-openai = "^0.1.10"
+llama-index-postprocessor-cohere-rerank = "^0.1.7"
 
 
 
