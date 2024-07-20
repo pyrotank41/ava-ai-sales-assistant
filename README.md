@@ -85,3 +85,9 @@ AVA is an AI-powered virtual assistant that interacts with customers' clients, c
 - Performance optimization for scaling beyond 1000 users
 - Integration with additional CRM platforms
 - Enhanced analytics and reporting features
+
+
+# to run the server locally 
+```shell
+uvicorn app.main:app --reload
+```
