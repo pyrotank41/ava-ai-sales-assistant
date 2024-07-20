@@ -1,6 +1,6 @@
 import json
 from fastapi import APIRouter, Request
-from app.integrations.leadconnector import get_auth_url, get_and_save_token
+from app.integrations.lead_connector.utils import get_and_save_token, get_auth_url
 
 router = APIRouter()
 
@@ -8,7 +8,6 @@ router = APIRouter()
 async def login():
     url = get_auth_url()
     return {"url": url}
-
 
 @router.get("/callback/leadconnector")
 async def callback(request: Request):

@@ -3,15 +3,25 @@ from typing import List, Optional
 
 from loguru import logger
 from app.ava.ava import Ava
-from app.integrations.leadconnector import NOT_SUPPORTED_MESSAGE_TYPES, LCMessageType, LeadConnector, convert_lcmessage_to_chatmessage, filter_messages_by_type, get_message_channel, is_ava_permitted_to_engage
+from app.config import PERMISSION_TAG
+from app.integrations.lead_connector.leadconnector import (
+    NOT_SUPPORTED_MESSAGE_TYPES,
+    LeadConnector,
+)
+
+from app.integrations.lead_connector.models import LCContactInfo, LCMessageType
+from app.integrations.lead_connector.utils import (
+    convert_lcmessage_to_chatmessage,
+    filter_messages_by_type,
+    get_message_channel,
+)
+from app.services.base_message_service import MessagingService
 
 
-class LeadConnectorMessageingService():
+class LeadConnectorMessageingService(MessagingService):
     def __init__(
-            self, 
-            lead_connector: Optional[LeadConnector] = None,
-            ava: Optional[Ava]=None
-        ):
+        self, lead_connector: Optional[LeadConnector] = None, ava: Optional[Ava] = None
+    ):
         self.ava = ava
         self.lead_connector = lead_connector
 
@@ -20,19 +30,32 @@ class LeadConnectorMessageingService():
         if lead_connector is None:
             self.lc = LeadConnector()
 
-    def process_special_codes(self, message:str, conversation_id:str)-> bool:
+    def process_special_codes(self, message: str, conversation_id: str) -> bool:
         RESET_CONVERSATION_CODE = "*RESET#"
         if message == RESET_CONVERSATION_CODE:
             logger.info(f"Resetting conversation {conversation_id}")
             self.lc.delete_conversation(conversation_id)
             return True
 
-    def respond(self, contact_id: str, conversation_id: str):
-        
+    def _is_ava_permitted_to_engage(self, contact_info: LCContactInfo) -> bool:
+
+        if not isinstance(contact_info, LCContactInfo):
+            raise ValueError("contact_info must be an instance of LCContactInfo")
+
+        if PERMISSION_TAG not in contact_info.tags:
+            logger.info(
+                f"Contact {contact_info.id} does not have the permission tag '{PERMISSION_TAG}', cannot engage with the contact"
+            )
+            return False
+
+        return True
+
+    def respond_to_inbound_message(self, contact_id: str, conversation_id: str):
+
         # step 1: lets make sure if ava is allowed to engage with the contact
         contact_info = self.lc.get_contact_info(contact_id)
         logger.debug(json.dumps(contact_info.model_dump(exclude_none=True), indent=4))
-        if not is_ava_permitted_to_engage(contact_info):
+        if not self._is_ava_permitted_to_engage(contact_info):
             return
 
         # step 2: lets get all the messages from the conversation
@@ -42,12 +65,12 @@ class LeadConnectorMessageingService():
         # step 2.1: lets get the message type, so we can filter the messages based on the source of message
         message_type = LCMessageType(recent_message.type)
 
-        # make sure we only get the messages_type we support
+        # makikng sure the message type is supported
         if message_type in NOT_SUPPORTED_MESSAGE_TYPES:
             logger.warning(
                 f"Recieved message type {message_type}, it is currently not supported, skipping this webhook event"
             )
-            return None
+            return
 
         # filtering message by type se we do not crosscontiminate the messages from different channels
         filtered_lc_messages = filter_messages_by_type(
@@ -70,8 +93,8 @@ class LeadConnectorMessageingService():
         user_message = chat_messages[-1]
         ava_message = ava.chat(user_message, chat_history)
 
+        # dividing messages by new line se we send them as seperate messages
         message_split = ava_message.message.content.split("\n\n")
-
         for message in message_split:
             self.lc.send_message(
                 contact_id=contact_id,
