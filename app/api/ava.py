@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from app.security import get_api_key
+from security import get_api_key
 from fastapi import APIRouter
 
 router = APIRouter()

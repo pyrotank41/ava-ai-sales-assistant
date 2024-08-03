@@ -1,6 +1,6 @@
 import json
 from fastapi import APIRouter, Request
-from app.integrations.lead_connector.utils import get_and_save_token, get_auth_url
+from integrations.lead_connector.utils import get_and_save_token, get_auth_url
 
 router = APIRouter()
 
