@@ -1,14 +1,23 @@
 import json
-from typing import List
-import httpx
 import os
+import sys
 from datetime import datetime, timedelta
+from typing import List
 
+import httpx
 from loguru import logger
-from app.integrations.lead_connector.config import CLIENT_ID, CLIENT_SECRET, TOKEN_URL
-from app.integrations.lead_connector.models import LCContactInfo, LCMessage, LCMessageType
-from app.integrations.lead_connector.utils import get_leadconnector_config_file
-from app.integrations.lead_connector.utils import message_type_mapping
+
+# path to the root dir
+path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
+logger.debug(f"Adding path to system path: {path}")
+sys.path.append(path)
+
+from app.integrations.lead_connector.config import (
+    CLIENT_ID, CLIENT_SECRET,TOKEN_URL)
+from app.integrations.lead_connector.models import (
+    LCContactInfo, LCMessage,LCMessageType)
+from app.integrations.lead_connector.utils import (
+    get_leadconnector_config_file, message_type_mapping)
 
 NOT_SUPPORTED_MESSAGE_TYPES = [
     LCMessageType.TYPE_CALL,
@@ -16,17 +25,23 @@ NOT_SUPPORTED_MESSAGE_TYPES = [
     ]
 
 class LeadConnector:
-    def __init__(self, config_file=".config/leadconnector_config.json"):
+
+    def __init__(
+        self,
+        location_id,
+        config_file=".config/leadconnector_config.json",
+    ):
         self.config_file = config_file
         self.config = get_leadconnector_config_file(config_file)
+        self.location_id = location_id
 
-    def save_config(self):
+    def _save_config(self):
         with open(self.config_file, "w", encoding="utf-8") as file:
             data = self.config.model_dump()
             del data["token_expiry"]
             json.dump(data, file, indent=4)
 
-    def refresh_token(self):
+    def _refresh_token(self):
         url = TOKEN_URL
         payload = {
             "grant_type": "refresh_token",
@@ -45,11 +60,11 @@ class LeadConnector:
             seconds=int(response_data["expires_in"])
         )
 
-        self.save_config()
+        self._save_config()
 
     def make_request(self, method, url, **kwargs):
         if datetime.now() >= self.config.token_expiry:
-            self.refresh_token()
+            self._refresh_token()
 
         headers = kwargs.pop("headers", {})
         headers["Authorization"] = f"Bearer {self.config.access_token}"
@@ -59,11 +74,19 @@ class LeadConnector:
 
         if response.status_code == 401:  # Token expired or unauthorized
             logger.debug("access token expired or currupted, refreshing token")
-            self.refresh_token()
+            self._refresh_token()
             headers["Authorization"] = f"Bearer {self.config.access_token}"
             response = httpx.request(method, url, headers=headers, **kwargs)
 
         return response
+
+    def get_user_by_location(self):
+        url = f"https://services.leadconnectorhq.com/users/?locationId={self.location_id}"
+        response = self.make_request("GET", url)
+        if response.status_code == 200:
+            return response.json().get("users")
+        else: 
+            response.raise_for_status()
 
     def get_contact_info(self, contact_id: str) -> LCContactInfo:
         url = f"https://services.leadconnectorhq.com/contacts/{contact_id}"
@@ -71,10 +94,47 @@ class LeadConnector:
         logger.debug(f"Contact info response: {response}")
         return LCContactInfo(**response.get("contact"))
 
+    def get_contact_by_email(self, email: str) -> LCContactInfo:
+        url = f"https://services.leadconnectorhq.com/contacts/"
+        params = {
+            "locationId": self.location_id,
+            "query": email,
+        }
+        response = self.make_request("GET", url, params=params).json()
+        logger.debug(f"Contact info response: {response}")
+        return LCContactInfo(**response.get("contacts")[0])
+
     def get_conversation(self, conversation_id):
         url = f"https://services.leadconnectorhq.com/conversations/{conversation_id}"
         response = self.make_request("GET", url)
         return response.json()
+
+    def search_conversations(self, contact_id: str):
+        url = f"https://services.leadconnectorhq.com/conversations/search"
+        params = {
+            "locationId": self.location_id,
+            "contactId": contact_id,
+        }
+        response = self.make_request("GET", url, params=params)
+        logger.debug(f"Search conversations response: {response.json()}")
+        return response.json().get("conversations")
+
+    def get_conversation_id(self, contact_id: str):
+        conversations = self.search_conversations(contact_id)
+        if len(conversations) == 0:
+            logger.error(f"No conversations found for contact {contact_id}")
+            return None
+        if len(conversations) > 1:
+            logger.error(
+                f"Multiple conversations found for contact {contact_id}. Returning the first one"
+            )
+
+        conversation_id = conversations[0].get("id")
+        if isinstance(conversation_id, str):
+            return conversation_id
+
+        logger.error(f"Invalid conversation id {conversation_id}")
+        raise ValueError(f"Invalid conversation id {conversation_id}")
 
     def get_all_messages(
         self, conversation_id: str, limit: int = 50
@@ -93,7 +153,7 @@ class LeadConnector:
         messages = [LCMessage(**message) for message in resp_dict.get("messages")]
         print("before")
         print(messages)
-        
+
         print("after")
         messages = sorted(messages, key=lambda x: x.dateAdded)
         return messages
@@ -144,3 +204,15 @@ class LeadConnector:
             logger.info(
                 f"Conversation {conversation_id} deleted. LC response: {response.json()}"
             )
+
+
+if __name__ == "__main__":
+    # add current path to system path
+    lc = LeadConnector(location_id="hqDwtNvswsupf6BT1Qxt")
+    # CONTACT_ID = "6smJfQjKMu95Y58rIcYl"
+    # conversations = lc.search_conversations(contact_id=CONTACT_ID)
+    # logger.debug(json.dumps(conversations, indent=4))
+    # logger.debug(f"conversation_id: {lc.get_conversation_id(contact_id=CONTACT_ID)}")
+
+    logger.debug(json.dumps(lc.get_user_by_location(), indent=4))
+    logger.debug(lc.get_contact_by_email("karankochar13@gmail.com"))

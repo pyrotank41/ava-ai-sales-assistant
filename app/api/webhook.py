@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field
 
 from app.services.lead_connector_messaging_service import LeadConnectorMessageingService
 
-
 class LeadConnectorWHTypeInboundMessage(BaseModel):
     type: str = Field(..., example="InboundMessage")
     locationId: str = Field(..., example="l1C08ntBrFjLS0elLIYU")
@@ -21,9 +20,7 @@ class LeadConnectorWHTypeInboundMessage(BaseModel):
     messageType: str = Field(..., example="SMS")
     status: str = Field(..., example="delivered")
 
-
 router = APIRouter()
-
 
 def is_lc_location_accepted(location_id: str) -> bool:
     """
@@ -82,5 +79,7 @@ async def leadconnector(request: Request):
 
         # if the message is not a special code, respond to the message
         lc_messaging_service.respond_to_inbound_message(
-            contact_id=wh_message.contactId, conversation_id=wh_message.conversationId
+            user_message=wh_message.body,
+            contact_id=wh_message.contactId, 
+            conversation_id=wh_message.conversationId
         )
