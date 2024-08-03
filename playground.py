@@ -1,30 +1,29 @@
-import os
-from dotenv import load_dotenv
-from openai import AzureOpenAI
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
 
-load_dotenv(".env")
 
-client = AzureOpenAI(
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    api_version="2024-02-01",
-    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-)
+def get_city_coordinates(city_name):
+    # Initialize the geocoder
+    geolocator = Nominatim(user_agent="my_app")
 
-deployment_name = os.getenv(
-    "AZURE_OPENAI_DEPLOYMENT_NAME"
-)  
+    try:
+        # Attempt to geocode the city
+        location = geolocator.geocode(city_name)
 
-response = client.chat.completions.create(
-    model=deployment_name,
-    messages=[
-        {"role": "system", "content": },
-        {"role": "user", "content": "Does Azure OpenAI support customer managed keys?"},
-        {
-            "role": "assistant",
-            "content": "Yes, customer managed keys are supported by Azure OpenAI.",
-        },
-        {"role": "user", "content": "Do other Azure AI services support this too?"},
-    ],
-)
+        if location:
+            return (location.latitude, location.longitude)
+        else:
+            return None
+    except (GeocoderTimedOut, GeocoderUnavailable):
+        print("Error: The geocoding service is unavailable. Please try again later.")
+        return None
 
-print(response.json())
+
+# Example usage
+city = input("Enter a city name: ")
+coordinates = get_city_coordinates(city)
+
+if coordinates:
+    print(f"The coordinates of {city} are: {coordinates}")
+else:
+    print(f"Could not find coordinates for {city}")

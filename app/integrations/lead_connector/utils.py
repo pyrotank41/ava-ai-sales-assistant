@@ -6,7 +6,7 @@ import httpx
 from loguru import logger
 from app.integrations.lead_connector.config import AUTHORIZATION_URL, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, TOKEN_URL
 from app.integrations.lead_connector.models import LCMessage, LCMessageDirection, LCMessageStatus, LCMessageType, LeadConnectorConfig
-from llama_index.core.base.llms.types import ChatMessage, MessageRole
+from app.datamodel import ChatMessage, MessageRole
 
 SCOPE = """
 calendars.write

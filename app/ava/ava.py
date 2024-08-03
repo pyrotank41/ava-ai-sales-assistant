@@ -1,6 +1,6 @@
 import os
 import timeit
-from typing import List
+from typing import List, Optional
 import json
 
 from llama_index.core.base.llms.types import ChatMessage, ChatResponse
@@ -23,7 +23,6 @@ def get_system_message_template(file: str = "prompt/main_v1.txt"):
             exit(1)
     return system_message
 
-
 def str_to_bool(string_value:str):
     if string_value.lower() in ["true", "1", "t", "yes", "y"]:
         return True
@@ -31,7 +30,6 @@ def str_to_bool(string_value:str):
         return False
     else:
         raise ValueError(f"Cannot convert {string_value} to boolean")
-
 
 def is_message_an_objection(
         messages: List[ChatMessage],
@@ -73,7 +71,6 @@ def is_message_an_objection(
     logger.info(f"Is message an objection: {resp}")
     return resp
 
-
 def add_obj_handelling_examples_to_system_messsage(
         retriever: BaseRetriever,
         system_message: str, 
@@ -109,13 +106,15 @@ def add_obj_handelling_examples_to_system_messsage(
 
         logger.debug(template.format(objections=obj_str))
         system_message = "\n" + template.format(objections=obj_str)
-
+        
     return system_message
 
 class Ava:
-    def __init__(self):
+    def __init__(self, system_message: Optional[str]=None):
         self.llm:LLM = get_azure_openai_client()
-        self.system_message:str = get_system_message_template()
+
+        self.system_message = system_message if system_message is not None else get_system_message_template()
+        logger.debug(f"System message: {self.system_message}")
         self.objection_handelling_retriver = ObjectionHandelingRetriever(
             similarity_top_k=2
         )
@@ -123,31 +122,35 @@ class Ava:
     def _get_chat_response(self, messages: List[ChatMessage]) -> ChatResponse:
         return self.llm.chat(messages)
 
-    def chat(
-        self,
-        user_message: ChatMessage, 
-        message_history: List[ChatMessage] = []
-    ) -> ChatResponse:
+    def _validate_chat_params(self, user_message: ChatMessage, message_history: List[ChatMessage]):
+        if not isinstance(user_message, ChatMessage):
+            logger.error("user_message must be an instance of ChatMessage")
+            raise ValueError("user_message must be an instance of ChatMessage")
 
-        # validation
         if not isinstance(message_history, list):
-            # check if message_history is a list of ChatMessage
             logger.error(f"message_history must be a list of ChatMessage, got {type(message_history)}")
             raise ValueError("message_history must be a list of ChatMessage")
 
         if not all(isinstance(message, ChatMessage) for message in message_history):
             logger.error("message_history must be a list of ChatMessage")
             raise ValueError("message_history must be a list of ChatMessage")
-        
-        if not isinstance(user_message, ChatMessage):
-            logger.error("user_message must be an instance of ChatMessage")
+
+    def chat(
+        self,
+        user_message: ChatMessage, 
+        message_history: List[ChatMessage] = [],
+        system_message: Optional[str] = None
+    ) -> ChatResponse:
+
+        # validation
+        self._validate_chat_params(user_message, message_history)
 
         # main logic -------------
         logger.info(f"User message: {user_message.content}")
-        
-        system_message = self.system_message
 
-        ## check if th user message is a objection.
+        system_message = system_message if system_message is not None else self.system_message
+
+        ## check if the user message is a objection.
         all_messages = message_history + [user_message]
         if is_message_an_objection(messages=all_messages, llm=self.llm):
             system_message = add_obj_handelling_examples_to_system_messsage(
@@ -155,18 +158,18 @@ class Ava:
                     system_message,
                     user_message
                 )
-        
 
         messages = [ChatMessage(role="system", content=system_message)] + message_history + [user_message]
         logger.debug(f"All messages: {json.dumps([message.dict() for message in messages], indent=4)}")
 
         chat_resp = self.llm.chat(messages)
         logger.info(f"AVA response: {chat_resp.message.content}")
-        
+
         # validation
         if not isinstance(chat_resp, ChatResponse):
             logger.error(f"chat_resp must be an instance of ChatMessage, got {type(chat_resp)}")
             raise ValueError("chat_resp must be an instance of ChatMessage")
+
         return chat_resp
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 # Define an Enum for message types
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, EmailStr, HttpUrl
 
@@ -75,9 +75,9 @@ class LeadConnectorConfig(BaseModel):
 
 
 class DNDSettings(BaseModel):
-    status: str
-    message: str
-    code: str
+    status: Optional[str] = None
+    message: Optional[str] = None
+    code: Optional[str] = None
 
 
 class AttributionSource(BaseModel):
@@ -103,7 +103,7 @@ class AttributionSource(BaseModel):
 
 class CustomField(BaseModel):
     id: str
-    value: str
+    value: Optional[Any] = None
 
 
 class LCContactInfo(BaseModel):
