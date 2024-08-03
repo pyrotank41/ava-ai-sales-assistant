@@ -1,7 +1,7 @@
 from fastapi import FastAPI
-from app.api import ava
-from app.api import oauth
-from app.api import webhook
+from api import ava
+from api import oauth
+from api import webhook
 from fastapi.openapi.utils import get_openapi
 from dotenv import load_dotenv
 load_dotenv()
@@ -11,6 +11,11 @@ app = FastAPI()
 app.include_router(oauth.router, tags=["Integration authentications"], prefix="/oauth")
 app.include_router(ava.router, tags=["Ava api endpoint"], prefix="/ava")
 app.include_router(webhook.router, tags=["Webhook endpoint"], prefix="/webhook")
+
+# add a health check endpoint /health
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 def custom_openapi():
     if app.openapi_schema:
@@ -29,7 +34,6 @@ def custom_openapi():
             method["security"] = [{"APIKeyHeader": []}]
     app.openapi_schema = openapi_schema
     return app.openapi_schema
-
 
 app.openapi = custom_openapi
 

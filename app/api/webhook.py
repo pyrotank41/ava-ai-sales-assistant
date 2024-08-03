@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from app.services.lead_connector_messaging_service import LeadConnectorMessageingService
+from services.lead_connector_messaging_service import LeadConnectorMessageingService
 
 class LeadConnectorWHTypeInboundMessage(BaseModel):
     type: str = Field(..., example="InboundMessage")
