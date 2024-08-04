@@ -5,7 +5,6 @@ import os
 
 from utils.load_env import load_env_vars
 
-
 API_KEY1 = os.getenv("API_KEY1")
 API_KEY2 = os.getenv("API_KEY2")
 
