@@ -58,8 +58,19 @@ jobs:
           targetPort: 8080
           ingress: 'external'
           containerAppEnvironment: ${{ secrets.CONTAINER_APP_ENVIRONMENT }}
-          healthProbeProtocol: 'HTTP'
-          healthProbePath: '/health'
+
+      - name: 'Configure Liveness Probe'
+        run: |
+          az containerapp update \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --probe-liveness \
+              http \
+              --probe-liveness-path /health \
+              --probe-liveness-port 8080 \
+              --probe-liveness-interval 10 \
+              --probe-liveness-timeout 5 \
+              --probe-liveness-failure-count 3
 
       - name: 'Azure logout'
         run: |
