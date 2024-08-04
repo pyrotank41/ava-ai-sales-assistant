@@ -1,5 +1,5 @@
+name: Continuous Deployment
 on:
-    name: Continuous Deployment
   push:
     branches: [ main ]
 
