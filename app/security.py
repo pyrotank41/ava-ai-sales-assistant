@@ -23,9 +23,10 @@ def load_api_keys():
 
 API_KEY1, API_KEY2 = load_api_keys()
 API_KEY_NAME = "access_token"
-api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
-def get_api_key(api_key_header: str = Security(api_key_header)):
+def get_api_key(
+    api_key_header: str = Security(APIKeyHeader(name=API_KEY_NAME, auto_error=False))
+):
     if api_key_header in (API_KEY1, API_KEY2):
         return api_key_header
     else:
