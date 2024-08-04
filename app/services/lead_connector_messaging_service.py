@@ -5,26 +5,26 @@ from typing import List, Optional
 
 from loguru import logger
 
-# path to the root dir
-path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-logger.debug(f"Adding path to system path: {path}")
-sys.path.append(path)
+# # path to the root dir
+# path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+# logger.debug(f"Adding path to system path: {path}")
+# sys.path.append(path)
 
-from app.config import PERMISSION_TAG
-from app.integrations.lead_connector.leadconnector import (
+from config import PERMISSION_TAG
+from integrations.lead_connector.leadconnector import (
     NOT_SUPPORTED_MESSAGE_TYPES,
     LeadConnector,
 )
 
-from app.integrations.lead_connector.models import LCContactInfo, LCMessageType
-from app.integrations.lead_connector.utils import (
+from integrations.lead_connector.models import LCContactInfo, LCMessageType
+from integrations.lead_connector.utils import (
     convert_lcmessage_to_chatmessage,
     filter_messages_by_type,
     get_message_channel,
 )
-from app.datamodel import ChatMessage
-from app.services.ava_service import AvaService
-from app.services.base_message_service import MessagingService
+from datamodel import ChatMessage
+from services.ava_service import AvaService
+from services.base_message_service import MessagingService
 
 
 class LeadConnectorMessageingService(MessagingService):

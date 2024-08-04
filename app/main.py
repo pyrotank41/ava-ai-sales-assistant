@@ -1,10 +1,19 @@
+import os
 from fastapi import FastAPI
 from api import ava
 from api import oauth
 from api import webhook
 from fastapi.openapi.utils import get_openapi
 from dotenv import load_dotenv
-load_dotenv()
+from utils.load_env import get_and_load_env_file
+
+
+# check if the .env file exists and load it
+if os.path.isfile(".env"):
+    load_dotenv(".env")
+
+else:
+    get_and_load_env_file()
 
 app = FastAPI()
 

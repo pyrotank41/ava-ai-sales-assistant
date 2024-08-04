@@ -27,6 +27,8 @@ llama-index-postprocessor-cohere-rerank = "^0.1.7"
 geopy = "^2.4.1"
 timezonefinder = "^6.5.2"
 pytz = "^2024.1"
+azure-keyvault-secrets = "^4.8.0"
+azure-storage-blob = "^12.21.0"
 
 
 
