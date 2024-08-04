@@ -4,8 +4,7 @@ from api import ava
 from api import oauth
 from api import webhook
 from fastapi.openapi.utils import get_openapi
-from dotenv import load_dotenv
-from utils.load_env import load_env_vars()
+from utils.load_env import load_env_vars
 
 load_env_vars()
 
