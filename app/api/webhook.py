@@ -53,7 +53,8 @@ async def leadconnector(request: Request):
     request = await request.json()
     logger.info(f"webhooked by leadconnector location id: {request['locationId']}")
 
-    if not is_lc_location_accepted(request["locationId"]):
+    # if not is_lc_location_accepted(request["locationId"]):
+    if request["locationId"] not in ["hqDwtNvswsupf6BT1Qxt"]:
         logger.warning(
             f"Location {request['locationId']} not accepted, skipping this WebHook event"
         )
