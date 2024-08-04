@@ -1,35 +1,38 @@
 import os
 import tempfile
 from dotenv import load_dotenv
-from azure.identity import DefaultAzureCredential, AzureCliCredential
-from azure.storage.blob import BlobClient
-from azure.core.exceptions import ResourceNotFoundError, ClientAuthenticationError
+from azure.storage.blob import BlobServiceClient
+from azure.core.exceptions import ResourceNotFoundError
 from loguru import logger
 
+
 def load_env_vars():
+
     if os.path.exists(".env"):
         load_dotenv(".env")
         logger.info("Environment variables loaded successfully from local .env file")
         return
-    
-    logger.info("No local .env file found, attempting to load from remote storage")
-    blob_url = os.getenv("BLOB_URL")
 
-    if not blob_url:
-        logger.error("BLOB_URL environment variable is not set")
-        raise ValueError("BLOB_URL environment variable is not set")
+    logger.info("No local .env file found, attempting to load from remote storage")
+    connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+    container_name = os.getenv("BLOB_CONTAINER_NAME")
+    blob_name = os.getenv("BLOB_NAME")
+
+    if not connection_string or not container_name or not blob_name:
+        logger.error(
+            "Required environment variables (AZURE_STORAGE_CONNECTION_STRING, BLOB_CONTAINER_NAME, BLOB_NAME) are not set"
+        )
+        raise ValueError("Required environment variables are not set")
 
     try:
-        # Determine the environment and set the appropriate credential
-        if os.getenv("AZURE_ENVIRONMENT") == "production":
-            logger.info("Using DefaultAzureCredential for production environment")
-            credential = DefaultAzureCredential()
-        else:
-            logger.info("Using AzureCliCredential for local development")
-            credential = AzureCliCredential()
-
-        logger.info(f"Attempting to access blob at URL: {blob_url}")
-        blob_client = BlobClient.from_blob_url(blob_url, credential=credential)
+        logger.info("Using connection string to access Azure Blob Storage")
+        blob_service_client = BlobServiceClient.from_connection_string(
+            connection_string
+        )
+        blob_client = blob_service_client.get_blob_client(
+            container=container_name, blob=blob_name
+        )
+        logger.info(f"Downloading blob content from {container_name}/{blob_name}")
 
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             logger.info("Downloading blob content")
@@ -43,11 +46,8 @@ def load_env_vars():
         logger.info("Environment variables loaded successfully from Azure Blob storage")
 
     except ResourceNotFoundError:
-        logger.error(f"The blob at {blob_url} was not found")
-    except ClientAuthenticationError as e:
-        logger.error(f"Authentication failed: {str(e)}")
-        logger.info(
-            "Please check your Managed Identity configuration and role assignments"
+        logger.error(
+            f"The blob {blob_name} in container {container_name} was not found"
         )
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
