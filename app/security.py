@@ -5,6 +5,7 @@ import os
 from utils.load_env import load_env_vars
 
 
+
 def load_api_keys():
     
     # Check if the API keys are set in the environment
@@ -28,7 +29,6 @@ def load_api_keys():
 
 API_KEY1, API_KEY2 = load_api_keys()
 API_KEY_NAME = "access_token"
-
 
 def get_api_key(
     api_key_header: str = Security(APIKeyHeader(name=API_KEY_NAME, auto_error=False))
