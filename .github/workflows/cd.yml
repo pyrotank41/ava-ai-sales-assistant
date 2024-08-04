@@ -11,6 +11,7 @@ env:
     REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
     CONTAINER_APP_NAME: ${{ secrets.CONTAINER_APP_NAME }}
     RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
+    BLOB_URL: ${{ secrets.BLOB_URL }}
 
 jobs:
   deploy:
@@ -43,6 +44,9 @@ jobs:
         containerAppName: ${{ env.CONTAINER_APP_NAME }}
         resourceGroup: ${{ env.RESOURCE_GROUP }}
         imageToDeploy: ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.CONTAINER_APP_NAME }}:${{ github.sha }}
+        environmentVariables: |
+          BLOB_URL=${{ secrets.BLOB_URL }}
+          ENVIRONMENT=production
 
     - name: 'Azure logout'
       run: |
