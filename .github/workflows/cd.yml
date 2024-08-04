@@ -12,7 +12,6 @@ env:
   CONTAINER_APP_NAME: "my-ava-container-app"
   RESOURCE_GROUP: "ava-ai-sales-assistant-rg"
   CONTAINER_APP_ENVIRONMENT: "ava-container-app-env"
-  LOG_ANALYTICS_WORKSPACE: "workspace-avaaisalesassistantrgKeNt"
   BLOB_URL: ${{ secrets.BLOB_URL }}
 
 jobs:
@@ -55,7 +54,6 @@ jobs:
           resourceGroup: ${{ env.RESOURCE_GROUP }}
           containerAppName: ${{ env.CONTAINER_APP_NAME }}
           containerAppEnvironment: ${{ env.CONTAINER_APP_ENVIRONMENT }}
-          logAnalyticsWorkspace: ${{ env.LOG_ANALYTICS_WORKSPACE }}
           imageToDeploy: ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
           environmentVariables: |
             BLOB_URL=${{ secrets.BLOB_URL }}
