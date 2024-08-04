@@ -5,15 +5,23 @@ import os
 
 from utils.load_env import load_env_vars
 
-API_KEY1 = os.getenv("API_KEY1")
-API_KEY2 = os.getenv("API_KEY2")
+def load_api_keys():
+    #check if the api keys are set in the environment
+    key1 = os.getenv("API_KEY1")
+    key2 = os.getenv("API_KEY2")
 
-# making sure that the keys are not empty
-if not API_KEY1 or not API_KEY2:
-    load_env_vars()
-    if not API_KEY1 or not API_KEY2:
+    if not key1 or not key2:
+        # load from remote storage
+        load_env_vars()
+        key1, key2 = load_api_keys()
+
+    # final validation
+    if not key1 or not key2:
         raise ValueError("API_KEY1 and API_KEY2 must be set in the environment")
 
+    return key1, key2
+
+API_KEY1, API_KEY2 = load_api_keys()
 API_KEY_NAME = "access_token"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
