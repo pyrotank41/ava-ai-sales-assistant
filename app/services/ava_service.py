@@ -11,10 +11,10 @@ import pytz
 path = sys.path[0].split("app")[0]
 sys.path.append(path)
 
-from app.services.azure_openai_service import get_azureopenai_service, LeadState
-from app.services.weather_service import WeatherService
-from app.ava.ava import Ava
-from app.datamodel import ChatMessage,ChatResponse
+from services.azure_openai_service import get_azureopenai_service, LeadState
+from services.weather_service import WeatherService
+from ava.ava import Ava
+from datamodel import ChatMessage,ChatResponse
 
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderUnavailable

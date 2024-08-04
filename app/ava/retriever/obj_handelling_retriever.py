@@ -9,9 +9,9 @@ from llama_index.core.schema import NodeWithScore
 import qdrant_client
 from loguru import logger
 
-from app.ava.retriever.base_retriever import BaseRetriever
-from app.ava.embeddings.aoai_ada_002 import get_embedding_model
-from app.ava.retriever.utils import get_nodes_from_objection_handelling_sheet
+from ava.retriever.base_retriever import BaseRetriever
+from ava.embeddings.aoai_ada_002 import get_embedding_model
+from ava.retriever.utils import get_nodes_from_objection_handelling_sheet
 
 class ObjectionHandelingRetriever(BaseRetriever):
 

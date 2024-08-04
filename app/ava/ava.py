@@ -8,9 +8,9 @@ from llama_index.core.llms.llm import LLM
 from dotenv import load_dotenv
 from loguru import logger
 from pydantic import BaseModel
-from app.ava.llm.llama_index_llms import get_anthropic_client, get_azure_openai_client
-from app.ava.retriever.base_retriever import BaseRetriever
-from app.ava.retriever.obj_handelling_retriever import ObjectionHandelingRetriever
+from ava.llm.llama_index_llms import get_anthropic_client, get_azure_openai_client
+from ava.retriever.base_retriever import BaseRetriever
+from ava.retriever.obj_handelling_retriever import ObjectionHandelingRetriever
 
 azure_llm = get_azure_openai_client()
 

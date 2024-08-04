@@ -2,7 +2,7 @@ import pandas as pd
 from loguru import logger
 from llama_index.core.schema import TextNode
 
-from app.ava.utils.google_drive_utils import (
+from ava.utils.google_drive_utils import (
     get_objection_handelling_vars,
     get_google_sheets_data,
 )

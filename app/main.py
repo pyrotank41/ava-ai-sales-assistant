@@ -5,7 +5,6 @@ from api import oauth
 from api import webhook
 from fastapi.openapi.utils import get_openapi
 from utils.load_env import load_env_vars
-
 load_env_vars()
 
 
@@ -41,5 +40,5 @@ def custom_openapi():
 app.openapi = custom_openapi
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # run the following uvicorn main:app --host 0.0.0.0 --port 8080
+    os.system("uvicorn main:app --host 0.0.0.0 --port 8080")
