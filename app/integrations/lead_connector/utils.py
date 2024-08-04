@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import json
+import os
 from typing import List, Optional
 from httpx import AsyncClient
 import httpx
@@ -130,26 +131,66 @@ def log_leadconnector_config(config: LeadConnectorConfig) -> None:
     logger.info(response_data_beautify)
 
 
-def save_leadconnector_config(config: LeadConnectorConfig, file_path: str) -> None:
+# def save_leadconnector_config(config: LeadConnectorConfig, file_path: str) -> None:
+#     """
+#     Saves the LeadConnectorConfig object to a file.
+
+#     Args:
+#         config (LeadConnectorConfig): The LeadConnectorConfig object to be saved.
+#         file_path (str, optional): The file path to save the LeadConnectorConfig object. Defaults to ".config/leadconnector_config.json".
+
+#     Returns:
+#         None
+#     """
+
+#     # file_path=".config/leadconnector_config.json",
+#     file_path = file_path
+#     os.makedirs(os.path.dirname(file_path), exist_ok=True)
+#     file_name = "leadconnector_config.json"
+#     file_path = os.path.join(file_path, file_name)
+
+#     # lets make sure the directory exists if not create it
+#     os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+#     with open(file_path, "w", encoding="utf-8") as file:
+#         data = config.model_dump()
+#         json.dump(data, file, indent=4)
+        
+def save_leadconnector_config(
+    config: LeadConnectorConfig, file_path: Optional[str] = None
+) -> None:
     """
     Saves the LeadConnectorConfig object to a file.
 
     Args:
         config (LeadConnectorConfig): The LeadConnectorConfig object to be saved.
-        file_path (str, optional): The file path to save the LeadConnectorConfig object. Defaults to ".config/leadconnector_config.json".
+        file_path (str, optional): The directory path to save the LeadConnectorConfig object.
+                                   If not provided, defaults to ".config".
 
     Returns:
         None
     """
-    with open(file_path, "w", encoding="utf-8") as file:
-        data = config.model_dump()
-        json.dump(data, file, indent=4)
+    if file_path is None:
+        file_path = ".config"
+
+    # Ensure the directory exists
+    os.makedirs(file_path, exist_ok=True)
+
+    file_name = "leadconnector_config.json"
+    full_file_path = os.path.join(file_path, file_name)
+
+    try:
+        with open(full_file_path, "w", encoding="utf-8") as file:
+            data = config.model_dump()
+            json.dump(data, file, indent=4)
+    except Exception as e:
+        raise Exception(f"Error saving config to {full_file_path}: {str(e)}") from e
 
 
 async def get_and_save_token(
     code: str,
     state: str,
-    file_path=".config/leadconnector_config.json",
+    file_path=".config",
 ):
     """
     Retrieves an access token using the provided authorization code and saves it to a file.
