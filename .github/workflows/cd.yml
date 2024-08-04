@@ -1,15 +1,18 @@
-name: Continuous Deployment
 on:
+    name: Continuous Deployment
   push:
     branches: [ main ]
 
 env:
   AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
-  AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+  AZURE_CONTAINER_REGISTRY: "avaContainerRegistory"
   REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
   REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
-  CONTAINER_APP_NAME: ${{ secrets.CONTAINER_APP_NAME }}
-  RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
+  IMAGE_NAME: "ava-app"
+  CONTAINER_APP_NAME: "my-ava-container-app"
+  RESOURCE_GROUP: "ava-ai-sales-assistant-rg"
+  CONTAINER_APP_ENVIRONMENT: "ava-container-app-env"
+  LOG_ANALYTICS_WORKSPACE: "workspace-avaaisalesassistantrgKeNt"
   BLOB_URL: ${{ secrets.BLOB_URL }}
 
 jobs:
@@ -49,9 +52,11 @@ jobs:
           acrName: ${{ env.AZURE_CONTAINER_REGISTRY }}
           acrUsername: ${{ env.REGISTRY_USERNAME }}
           acrPassword: ${{ env.REGISTRY_PASSWORD }}
-          containerAppName: ${{ env.CONTAINER_APP_NAME }}
           resourceGroup: ${{ env.RESOURCE_GROUP }}
-          imageToDeploy: ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.CONTAINER_APP_NAME }}:${{ github.sha }}
+          containerAppName: ${{ env.CONTAINER_APP_NAME }}
+          containerAppEnvironment: ${{ env.CONTAINER_APP_ENVIRONMENT }}
+          logAnalyticsWorkspace: ${{ env.LOG_ANALYTICS_WORKSPACE }}
+          imageToDeploy: ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
           environmentVariables: |
             BLOB_URL=${{ secrets.BLOB_URL }}
             ENVIRONMENT=production
