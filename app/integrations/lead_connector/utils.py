@@ -173,8 +173,10 @@ def save_leadconnector_config(
     if file_path is None:
         file_path = ".config"
 
-    # Ensure the directory exists
-    os.makedirs(file_path, exist_ok=True)
+
+    if not os.path.exists(file_path):
+        os.makedirs(file_path, exist_ok=True)
+        logger.info(f"Directory created: {file_path}")
 
     file_name = "leadconnector_config.json"
     full_file_path = os.path.join(file_path, file_name)
