@@ -1,0 +1,54 @@
+name: CD to Azure Container Apps
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+        AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+        ACR_NAME: registryfb116392
+        ACR_USERNAME: ${{ secrets.AVACONTAINERAPP3B0015BD_REGISTRY_USERNAME }}
+        ACR_PASSWORD: ${{ secrets.AVACONTAINERAPP3B0015BD_REGISTRY_PASSWORD }}
+        IMAGE_NAME: ava-app
+        CONTAINER_APP_NAME: ${{ secrets.CONTAINER_APP_NAME }}
+        AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+        BLOB_CONTAINER_NAME: "ava-ai-sales-assistant-env"
+        BLOB_NAME: "env"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ env.ACR_NAME }}.azurecr.io
+          username: ${{ env.ACR_USERNAME }}
+          password: ${{ env.ACR_PASSWORD }}
+
+      - name: Build and push Docker image
+        run: |
+          docker build -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ env.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure Container Apps
+        run: |
+          az containerapp update \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --env-vars AZURE_STORAGE_CONNECTION_STRING=${{ env.AZURE_STORAGE_CONNECTION_STRING}} BLOB_CONTAINER_NAME=${{ env.BLOB_CONTAINER_NAME }} BLOB_NAME=${{ env.BLOB_NAME }} \
+            --min-replicas 1 \
+            --max-replicas 4
