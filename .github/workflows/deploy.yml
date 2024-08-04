@@ -16,6 +16,7 @@ jobs:
         IMAGE_NAME: ava-app
         CONTAINER_APP_NAME: ${{ secrets.CONTAINER_APP_NAME }}
         AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+        RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
         BLOB_CONTAINER_NAME: "ava-ai-sales-assistant-env"
         BLOB_NAME: "env"
 
