@@ -6,9 +6,13 @@ from azure.storage.blob import BlobClient
 from azure.core.exceptions import ResourceNotFoundError, ClientAuthenticationError
 from loguru import logger
 
-def get_and_load_env_file():
-    load_dotenv(".env.local")
-
+def load_env_vars():
+    if os.path.exists(".env"):
+        load_dotenv(".env")
+        logger.info("Environment variables loaded successfully from local .env file")
+        return
+    
+    logger.info("No local .env file found, attempting to load from remote storage")
     blob_url = os.getenv("BLOB_URL")
 
     if not blob_url:
@@ -52,4 +56,4 @@ def get_and_load_env_file():
 
 
 if __name__ == "__main__":
-    get_and_load_env_file()
+    load_env_vars()
