@@ -55,22 +55,6 @@ jobs:
           environmentVariables: |
             BLOB_URL=${{ secrets.BLOB_URL }}
             ENVIRONMENT=production
-          targetPort: 8080
-          ingress: 'external'
-          containerAppEnvironment: ${{ secrets.CONTAINER_APP_ENVIRONMENT }}
-
-      - name: 'Configure Liveness Probe'
-        run: |
-          az containerapp update \
-            --name ${{ env.CONTAINER_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --probe-liveness \
-              http \
-              --probe-liveness-path /health \
-              --probe-liveness-port 8080 \
-              --probe-liveness-interval 10 \
-              --probe-liveness-timeout 5 \
-              --probe-liveness-failure-count 3
 
       - name: 'Azure logout'
         run: |
