@@ -70,7 +70,7 @@ async def leadconnector(request: Request):
         logger.info(json.dumps(request, indent=4))
 
         wh_message = LeadConnectorWHTypeInboundMessage(**request)
-        lc_messaging_service = LeadConnectorMessageingService()
+        lc_messaging_service = LeadConnectorMessageingService(location_id=wh_message.locationId)
 
         # if the incomming message is a special code, process it and return, dont go further
         if lc_messaging_service.process_special_codes(
