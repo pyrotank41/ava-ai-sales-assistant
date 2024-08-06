@@ -1,9 +1,15 @@
 import os
 
+from utils.env import is_dev_env
 
 CLIENT_ID = os.getenv("LEADCONNECTOR_CLIENT_ID")
 CLIENT_SECRET = os.getenv("LEADCONNECTOR_CLIENT_SECRET")
-REDIRECT_URI = os.getenv("LEADCONNECTOR_REDIRECT_URI")
+
+if is_dev_env():
+    REDIRECT_URI = "http://localhost:8080/oauth/callback/leadconnector"
+else: 
+    REDIRECT_URI = os.getenv("LEADCONNECTOR_REDIRECT_URI")
+
 
 if not CLIENT_ID or not CLIENT_SECRET or not REDIRECT_URI:
     raise ValueError("LEADCONNECTOR_CLIENT_ID, LEADCONNECTOR_CLIENT_SECRET, and LEADCONNECTOR_REDIRECT_URI must be set in the environment variables")

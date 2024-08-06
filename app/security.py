@@ -2,7 +2,7 @@ from fastapi import HTTPException, Security
 from fastapi.security.api_key import APIKeyHeader
 from starlette.status import HTTP_403_FORBIDDEN
 import os
-from utils.load_env import load_env_vars
+from utils.env import load_env_vars
 
 
 
