@@ -164,7 +164,7 @@ class AvaService:
         )
 
         # Creating the context message
-        prompt_template = load_prompt_template("app/prompt/lead_engage_sms.txt")
+        prompt_template = load_prompt_template("prompt/lead_engage_sms.txt")
 
         context_message = f"""
         About the lead: 
