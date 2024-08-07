@@ -217,7 +217,7 @@ async def get_and_save_token(
 
     response = convert_response_to_leadconnector_config(response_data)
     log_leadconnector_config(response)
-    save_leadconnector_config(response, CONFIG_FILE_PATH)
+    save_leadconnector_config(response)
 
 
 def save_leadconnector_config(
