@@ -192,6 +192,8 @@ class AvaService:
                     return True, resp
                 else:
                     context = prompt_template.format(context=context_message)
+                    if isinstance(user_message, str):
+                        user_message = ChatMessage(role="user", content=user_message)
                     resp = self.ava.chat(user_message, chat_history, system_message=context)
                     return True, resp.message.content
             

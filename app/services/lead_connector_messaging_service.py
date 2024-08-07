@@ -124,7 +124,8 @@ class LeadConnectorMessageingService(MessagingService):
             )
         else:
             ava_service_resp = ava_service.generate_message(  # this call will generate a response to re-engage the lead
-                chat_history=chat_history, contact_info=contact_info
+                chat_history=chat_history,
+                contact_info=contact_info.model_dump(exclude_unset=True),
             )
         generation_state, message = ava_service_resp
 
@@ -146,7 +147,7 @@ class LeadConnectorMessageingService(MessagingService):
         # for now we are hardcoding thie user ids to notify the users for testing
         notify_users_contact_id = ["6smJfQjKMu95Y58rIcYl", "n66TIjUfMUrSQCZzypK6"]
         contact_infos: List[LCContactInfo] = []
- 
+
         for contact_id in notify_users_contact_id:
             try:
                 contact_info = self.lc.get_contact_info(contact_id)
