@@ -7,18 +7,20 @@ from pydantic import BaseModel, Field
 
 from services.lead_connector_messaging_service import LeadConnectorMessageingService
 
+
 class LeadConnectorWHTypeInboundMessage(BaseModel):
     type: str = Field(..., example="InboundMessage")
     locationId: str = Field(..., example="l1C08ntBrFjLS0elLIYU")
-    attachments: Optional[List[str]] = Field(..., default_factory=list(), example=[])
-    body: str = Field(..., example="This is a test message")
-    contactId: str = Field(..., example="cI08i1Bls3iTB9bKgFJh")
-    contentType: str = Field(..., example="text/plain")
-    conversationId: str = Field(..., example="fcanlLgpbQgQhderivVs")
-    dateAdded: datetime = Field(..., example="2021-04-21T11:31:45.750Z")
-    direction: str = Field(..., example="inbound")
-    messageType: str = Field(..., example="SMS")
-    status: str = Field(..., example="delivered")
+    attachments: Optional[List[str]] = Field(None, default_factory=list, example=[])
+    body: Optional[str] = Field(None, example="This is a test message")
+    contactId: Optional[str] = Field(None, example="cI08i1Bls3iTB9bKgFJh")
+    contentType: Optional[str] = Field(None, example="text/plain")
+    conversationId: Optional[str] = Field(None, example="fcanlLgpbQgQhderivVs")
+    dateAdded: Optional[datetime] = Field(None, example="2021-04-21T11:31:45.750Z")
+    direction: Optional[str] = Field(None, example="inbound")
+    messageType: Optional[str] = Field(None, example="SMS")
+    status: Optional[str] = Field(None, example="delivered")
+
 
 router = APIRouter()
 

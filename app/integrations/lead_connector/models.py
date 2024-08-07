@@ -49,7 +49,7 @@ class LCMessage(BaseModel):
     attachments: Optional[List[HttpUrl]] = []
     body: str = ""
     contentType: str = ""
-    dateAdded: datetime
+    dateAdded: Optional[datetime] = None
     userId: Optional[str] = None
     source: Optional[str] = None
 
