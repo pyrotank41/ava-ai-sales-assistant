@@ -51,5 +51,8 @@ jobs:
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            --set-env-vars AZURE_STORAGE_CONNECTION_STRING=${{ env.AZURE_STORAGE_CONNECTION_STRING }} BLOB_CONTAINER_NAME=${{ env.BLOB_CONTAINER_NAME }} BLOB_NAME=${{ env.BLOB_NAME }} ENV=${{ env.ENV}} 
+            --set-env-vars AZURE_STORAGE_CONNECTION_STRING=${{ env.AZURE_STORAGE_CONNECTION_STRING }} \ 
+            BLOB_CONTAINER_NAME=${{ env.BLOB_CONTAINER_NAME }} \
+            BLOB_NAME=${{ env.BLOB_NAME }} \
+            ENV=${{ env.ENV }} 
 
