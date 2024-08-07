@@ -120,7 +120,7 @@ class LeadConnectorMessageingService(MessagingService):
             ava_service_resp = ava_service.generate_message( # this call will generate a response to the user message
                 user_message=user_message,
                 chat_history=chat_history,
-                contact_info=contact_info
+                contact_info=contact_info.model_dump(exclude_unset=True)
             )
         else:
             ava_service_resp = ava_service.generate_message(  # this call will generate a response to re-engage the lead

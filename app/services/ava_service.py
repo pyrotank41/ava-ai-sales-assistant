@@ -138,6 +138,8 @@ class AvaService:
             Exception: If an error occurs while generating the message.
 
         """
+        if not isinstance(contact_info, dict):
+            logger.error("contact_info must be a dictionary")
 
         # collecting metadata for the lead
         time_zone = contact_info.get("timezone")
