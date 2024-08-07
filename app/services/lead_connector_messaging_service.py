@@ -112,7 +112,7 @@ class LeadConnectorMessageingService(MessagingService):
         ava_service = AvaService()
         chat_history = chat_messages[0:-1]
 
-        if user_message is not None: #validateing the user message is the last message, as it should be
+        if user_message is not None: # validating if user message is the last message, if not, ava is reaching out further.
             conversation_user_message = chat_messages[-1]
             if conversation_user_message.content != user_message:
                 raise ValueError("User message should be the last message in the conversation")
