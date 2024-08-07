@@ -123,6 +123,7 @@ class Ava:
         return self.llm.chat(messages)
 
     def _validate_chat_params(self, user_message: ChatMessage, message_history: List[ChatMessage]):
+        
         if not isinstance(user_message, ChatMessage):
             logger.error("user_message must be an instance of ChatMessage")
             raise ValueError("user_message must be an instance of ChatMessage")
@@ -141,6 +142,9 @@ class Ava:
         message_history: List[ChatMessage] = [],
         system_message: Optional[str] = None
     ) -> ChatResponse:
+        
+        if isinstance(user_message,str):
+            user_message = ChatMessage(role="user", content=user_message)
 
         # validation
         self._validate_chat_params(user_message, message_history)
