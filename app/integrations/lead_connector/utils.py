@@ -5,8 +5,22 @@ from typing import List, Optional
 from httpx import AsyncClient
 import httpx
 from loguru import logger
-from integrations.lead_connector.config import AUTHORIZATION_URL, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, TOKEN_URL
-from integrations.lead_connector.models import LCMessage, LCMessageDirection, LCMessageStatus, LCMessageType, LeadConnectorConfig
+from utils.azure import get_default_azure_connection_string, get_default_azure_container_name, get_json_from_blob, upload_json_to_blob
+from utils.env import is_dev_env
+from integrations.lead_connector.config import (
+    AUTHORIZATION_URL,
+    CLIENT_ID,
+    CLIENT_SECRET,
+    REDIRECT_URI,
+    TOKEN_URL,
+)
+from integrations.lead_connector.models import (
+    LCMessage,
+    LCMessageDirection,
+    LCMessageStatus,
+    LCMessageType,
+    LeadConnectorConfig,
+)
 from datamodel import ChatMessage, MessageRole
 
 SCOPE = """
@@ -52,8 +66,13 @@ locations.readonly
 locations/customValues.readonly
 locations/customValues.write
 """
+
+CONFIG_FILE_PATH = ".config"
+CONFIG_FILE_NAME = "leadconnector_config.json"
+
 def get_scope():
     return SCOPE
+
 
 message_type_mapping = (
     {  # the mapping of the message type required when sending a message
@@ -155,44 +174,10 @@ def log_leadconnector_config(config: LeadConnectorConfig) -> None:
 #     with open(file_path, "w", encoding="utf-8") as file:
 #         data = config.model_dump()
 #         json.dump(data, file, indent=4)
-        
-def save_leadconnector_config(
-    config: LeadConnectorConfig, file_path: Optional[str] = None
-) -> None:
-    """
-    Saves the LeadConnectorConfig object to a file.
-
-    Args:
-        config (LeadConnectorConfig): The LeadConnectorConfig object to be saved.
-        file_path (str, optional): The directory path to save the LeadConnectorConfig object.
-                                   If not provided, defaults to ".config".
-
-    Returns:
-        None
-    """
-    if file_path is None:
-        file_path = ".config"
-
-
-    if not os.path.exists(file_path):
-        os.makedirs(file_path, exist_ok=True)
-        logger.info(f"Directory created: {file_path}")
-
-    file_name = "leadconnector_config.json"
-    full_file_path = os.path.join(file_path, file_name)
-
-    try:
-        with open(full_file_path, "w", encoding="utf-8") as file:
-            data = config.model_dump()
-            json.dump(data, file, indent=4)
-    except Exception as e:
-        raise Exception(f"Error saving config to {full_file_path}: {str(e)}") from e
-
 
 async def get_and_save_token(
     code: str,
-    state: str,
-    file_path=".config",
+    state: str
 ):
     """
     Retrieves an access token using the provided authorization code and saves it to a file.
@@ -232,23 +217,86 @@ async def get_and_save_token(
 
     response = convert_response_to_leadconnector_config(response_data)
     log_leadconnector_config(response)
-    save_leadconnector_config(response, file_path)
+    save_leadconnector_config(response, CONFIG_FILE_PATH)
+
+
+def save_leadconnector_config(
+    config: LeadConnectorConfig
+) -> None:
+    """
+    Saves the LeadConnectorConfig object to a file.
+
+    Args:
+        config (LeadConnectorConfig): The LeadConnectorConfig object to be saved.
+        file_path (str, optional): The directory path to save the LeadConnectorConfig object.
+                                   If not provided, defaults to ".config".
+
+    Returns:
+        None
+    """
+    file_name = CONFIG_FILE_NAME
+    json_data = config.model_dump()
+
+    if "token_expiry" in json_data:
+        logger.debug("Removing token_expiry from config before saving")
+        del json_data["token_expiry"]
+
+    if is_dev_env():
+      
+        file_path = CONFIG_FILE_PATH
+
+        if not os.path.exists(file_path):
+            os.makedirs(file_path, exist_ok=True)
+            logger.info(f"Directory created: {file_path}")
+
+        full_file_path = os.path.join(file_path, file_name)
+
+        try:
+            with open(full_file_path, "w", encoding="utf-8") as file:
+                json.dump(json_data, file, indent=4)
+        except Exception as e:
+            raise Exception(f"Error saving config to {full_file_path}: {str(e)}") from e
+
+    else:
+        connection_string = get_default_azure_connection_string()
+        default_container_name = get_default_azure_container_name()
+        blob_name = file_name
+
+        upload_json_to_blob(
+                connection_string=connection_string,
+                container_name=default_container_name,
+                blob_name=blob_name,
+                json_data=json_data
+            )
 
 
 # get the configurations from the config file
-def get_leadconnector_config_file(file_path) -> LeadConnectorConfig:
-    with open(file_path, "r", encoding="utf-8") as file:
-        data = json.load(file)
-        # Calculate and set the token expiry time
-        data["token_expiry"] = datetime.now() + timedelta(seconds=data["expires_in"])
-        config = LeadConnectorConfig(**data)
+def get_leadconnector_config_file() -> LeadConnectorConfig:
+
+    if is_dev_env():
+        file_path = os.path.join(CONFIG_FILE_PATH, CONFIG_FILE_NAME)
+        with open(file_path, "r", encoding="utf-8") as file:
+            data = json.load(file)
+
+    else:
+        connection_string = get_default_azure_connection_string()
+        default_container_name = get_default_azure_container_name()
+        file_name = CONFIG_FILE_NAME
+        data = get_json_from_blob(
+            connection_string=connection_string, 
+            container_name=default_container_name, 
+            blob_name=file_name)
+
+    # Calculate and set the token expiry time
+    data["token_expiry"] = datetime.now() + timedelta(
+        seconds=data["expires_in"]
+    )
+    config = LeadConnectorConfig(**data)
+
     return config
 
 
-def get_auth_url(
-        scope=None,
-        state="6969"
-    ):
+def get_auth_url(scope=None, state="6969"):
     # f"{self.auth_url}?response_type=code&client_id={self.client_id}&redirect_uri={self.redirect_uri}&scope={self.scope}&state={state}"
     auth_url = AUTHORIZATION_URL
     client_id = CLIENT_ID

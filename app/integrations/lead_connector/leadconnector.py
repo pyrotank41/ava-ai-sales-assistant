@@ -7,17 +7,16 @@ from typing import List
 import httpx
 from loguru import logger
 
-# # path to the root dir
-# path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
-# logger.debug(f"Adding path to system path: {path}")
-# sys.path.append(path)
-
+from utils.env import is_dev_env, load_env_vars
 from integrations.lead_connector.config import (
     CLIENT_ID, CLIENT_SECRET,TOKEN_URL)
 from integrations.lead_connector.models import (
     LCContactInfo, LCMessage,LCMessageType)
 from integrations.lead_connector.utils import (
-    get_leadconnector_config_file, message_type_mapping)
+        get_leadconnector_config_file, 
+        message_type_mapping, 
+        save_leadconnector_config
+    )
 
 NOT_SUPPORTED_MESSAGE_TYPES = [
     LCMessageType.TYPE_CALL,
@@ -29,17 +28,9 @@ class LeadConnector:
     def __init__(
         self,
         location_id,
-        config_file=".config/leadconnector_config.json",
     ):
-        self.config_file = config_file
-        self.config = get_leadconnector_config_file(config_file)
+        self.config = get_leadconnector_config_file()
         self.location_id = location_id
-
-    def _save_config(self):
-        with open(self.config_file, "w", encoding="utf-8") as file:
-            data = self.config.model_dump()
-            del data["token_expiry"]
-            json.dump(data, file, indent=4)
 
     def _refresh_token(self):
         url = TOKEN_URL
@@ -59,12 +50,12 @@ class LeadConnector:
         self.config.token_expiry = datetime.now() + timedelta(
             seconds=int(response_data["expires_in"])
         )
-
-        self._save_config()
+        
+        save_leadconnector_config(self.config)
 
     def make_request(self, method, url, **kwargs):
-        if datetime.now() >= self.config.token_expiry:
-            self._refresh_token()
+        # if datetime.now() >= self.config.token_expiry:
+        self._refresh_token()
 
         headers = kwargs.pop("headers", {})
         headers["Authorization"] = f"Bearer {self.config.access_token}"
@@ -213,6 +204,6 @@ if __name__ == "__main__":
     # conversations = lc.search_conversations(contact_id=CONTACT_ID)
     # logger.debug(json.dumps(conversations, indent=4))
     # logger.debug(f"conversation_id: {lc.get_conversation_id(contact_id=CONTACT_ID)}")
-
+    load_env_vars()
     logger.debug(json.dumps(lc.get_user_by_location(), indent=4))
     logger.debug(lc.get_contact_by_email("karankochar13@gmail.com"))
