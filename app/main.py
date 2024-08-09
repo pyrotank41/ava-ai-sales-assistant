@@ -1,9 +1,11 @@
 import os
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from api import ava
 from api import oauth
 from api import webhook
+from api import lead_connector
 from fastapi.openapi.utils import get_openapi
+from security import get_api_key
 from utils.env import load_env_vars
 load_env_vars()
 
@@ -13,6 +15,12 @@ app = FastAPI()
 app.include_router(oauth.router, tags=["Integration authentications"], prefix="/oauth")
 app.include_router(ava.router, tags=["Ava api endpoint"], prefix="/ava")
 app.include_router(webhook.router, tags=["Webhook endpoint"], prefix="/webhook")
+app.include_router(
+    lead_connector.router,
+    tags=["Lead connector endpoint"],
+    prefix="/lead_connector",
+    dependencies=[Depends(get_api_key)],
+)
 
 # add a health check endpoint /health
 @app.get("/health")
@@ -41,4 +49,4 @@ app.openapi = custom_openapi
 
 if __name__ == "__main__":
     # run the following uvicorn main:app --host 0.0.0.0 --port 8080
-    os.system("uvicorn main:app --host 0.0.0.0 --port 8080")
+    os.system("uvicorn main:app --host 0.0.0.0 --port 8080 --reload")

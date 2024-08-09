@@ -11,7 +11,7 @@ from services.lead_connector_messaging_service import LeadConnectorMessageingSer
 class LeadConnectorWHTypeInboundMessage(BaseModel):
     type: str = Field(..., example="InboundMessage")
     locationId: str = Field(..., example="l1C08ntBrFjLS0elLIYU")
-    attachments: Optional[List[str]] = Field(None, default_factory=list, example=[])
+    attachments: Optional[List[str]] = list()
     body: Optional[str] = Field(None, example="This is a test message")
     contactId: Optional[str] = Field(None, example="cI08i1Bls3iTB9bKgFJh")
     contentType: Optional[str] = Field(None, example="text/plain")
@@ -23,6 +23,7 @@ class LeadConnectorWHTypeInboundMessage(BaseModel):
 
 
 router = APIRouter()
+
 
 def is_lc_location_accepted(location_id: str) -> bool:
     """
@@ -72,7 +73,9 @@ async def leadconnector(request: Request):
         logger.info(json.dumps(request, indent=4))
 
         wh_message = LeadConnectorWHTypeInboundMessage(**request)
-        lc_messaging_service = LeadConnectorMessageingService(location_id=wh_message.locationId)
+        lc_messaging_service = LeadConnectorMessageingService(
+            location_id=wh_message.locationId
+        )
 
         # if the incomming message is a special code, process it and return, dont go further
         if lc_messaging_service.process_special_codes(
@@ -81,8 +84,8 @@ async def leadconnector(request: Request):
             return
 
         # if the message is not a special code, respond to the message
-        lc_messaging_service.respond_to_inbound_message(
+        lc_messaging_service.process_to_inbound_message(
             user_message=wh_message.body,
-            contact_id=wh_message.contactId, 
-            conversation_id=wh_message.conversationId
+            contact_id=wh_message.contactId,
+            conversation_id=wh_message.conversationId,
         )

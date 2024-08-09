@@ -347,4 +347,10 @@ def convert_lcmessage_to_chatmessage(messages: List[LCMessage]) -> List[ChatMess
         )
         chat_messages.append(chat_message)
 
+    # validating the chat_messages, only list is allowed
+    if not isinstance(chat_messages, List):
+        raise ValueError("chat_messages should be a list")
+    if not all(isinstance(message, ChatMessage) for message in chat_messages):
+        raise ValueError("chat_messages should be a list of ChatMessage")
+
     return chat_messages
