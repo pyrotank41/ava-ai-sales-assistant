@@ -67,7 +67,7 @@ async def leadconnector(request: Request):
     logger.info(f"Leadconnector webhook type {request_type} recieved")
 
     if request_type == "ContactTagUpdate":
-        logger.info(json.dumps(request, indent=4))
+        logger.info(json.dumps(request, indent=4))      
 
     if request_type == "InboundMessage":
         logger.info(json.dumps(request, indent=4))
@@ -82,10 +82,8 @@ async def leadconnector(request: Request):
             message=wh_message.body, conversation_id=wh_message.conversationId
         ):
             return
-
         # if the message is not a special code, respond to the message
         lc_messaging_service.process_to_inbound_message(
-            user_message=wh_message.body,
             contact_id=wh_message.contactId,
             conversation_id=wh_message.conversationId,
         )

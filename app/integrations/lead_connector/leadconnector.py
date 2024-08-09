@@ -138,7 +138,7 @@ class LeadConnector:
         # add the limit to the query params
         url += f"?limit={limit}"
         response = self.make_request("GET", url)
-
+        logger.debug(f"Get all messages response: {response.json()}")
         resp_dict = dict(dict(response.json()).get("messages"))
         if resp_dict.get("nextPage") is True:
             logger.error("More messages available, please implement pagination")
