@@ -192,6 +192,7 @@ class LeadConnectorMessageingService(MessagingService):
             contact_info=self.convert_lc_contact_info_to_contact_info(lc_contact_info),
         )
 
+
         if generation_state is True:
             # dividing messages by new line se we send them as seperate messages
             message_split = message.split("\n\n")
@@ -211,7 +212,7 @@ class LeadConnectorMessageingService(MessagingService):
         # for now we are hardcoding thie user ids to notify the users for testing
         notify_users_contact_id = ["6smJfQjKMu95Y58rIcYl", "n66TIjUfMUrSQCZzypK6"]
         contact_infos: List[LCContactInfo] = []
-
+ 
         for contact_id in notify_users_contact_id:
             try:
                 contact_info = self.lc.get_contact_info(contact_id)
@@ -230,7 +231,6 @@ class LeadConnectorMessageingService(MessagingService):
             except Exception as e:
                 logger.error(f"Error sending message to {contact.id}: {e}")
                 continue
-
 
 if __name__ == "__main__":
     lc = LeadConnector(location_id="hqDwtNvswsupf6BT1Qxt")

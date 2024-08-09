@@ -23,28 +23,6 @@ from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
 from timezonefinder import TimezoneFinder
 import pytz
 
-# def get_timezone_by_city(city: str) -> Optional[str]:
-#     geolocator = Nominatim(user_agent="my_app")
-#     tf = TimezoneFinder()
-#     try:
-#         location = geolocator.geocode(city)
-#         # Find the timezone for the coordinates
-#         timezone_str = tf.timezone_at(lat=location.latitude, lng=location.longitude)
-
-#         if timezone_str:
-#             # Get the timezone object
-#             tz = pytz.timezone(timezone_str)
-#             # Return the current time in that timezone
-#             return str(datetime.now(tz).tzname())
-#         else:
-#             print(f"Could not determine timezone for {city}")
-#             return None
-
-#     except (GeocoderTimedOut, GeocoderUnavailable):
-#         print("Error: The geocoding service is unavailable. Please try again later.")
-#         return None
-
-
 def get_timezone_by_city(city: str) -> Optional[str]:
     geolocator = Nominatim(user_agent="my_app")
     tf = TimezoneFinder()
@@ -236,6 +214,7 @@ class AvaService:
             Exception: If an error occurs while generating the message.
 
         """
+
         if not isinstance(contact_info, ContactInfo):
             logger.error("contact_info must be of type ContactInfo")
 
@@ -243,6 +222,7 @@ class AvaService:
         #     most_recent_message = conversation_messages[-1]
         #     user_message = most_recent_message.content if most_recent_message.role == "user" else None
         #     chat_history = conversation_messages[:-1]
+
 
         # collecting metadata for the lead
         time_zone = contact_info.timezone
@@ -259,11 +239,8 @@ class AvaService:
         # Creating the context message
         prompt_template = load_prompt_template("prompt/lead_engage_sms.txt")
 
-        # TODO: Simplify the mess below.
-        # - there are two ways we are calling the ai model, one with user_message and one without,
-        # we should unify this to one way for simplicity
-
         context_message = get_context(contact_info, local_time, lead_state)
+
 
         if lead_state != LeadState.READY_FOR_APPOINTMENT:
             try:
