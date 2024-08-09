@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, EmailStr, HttpUrl
+from pydantic import BaseModel, EmailStr, Field, HttpUrl
 
 
 class LCMessageType(
@@ -49,7 +49,7 @@ class LCMessage(BaseModel):
     attachments: Optional[List[HttpUrl]] = []
     body: str = ""
     contentType: str = ""
-    dateAdded: datetime
+    dateAdded: Optional[datetime] = None
     userId: Optional[str] = None
     source: Optional[str] = None
 
@@ -101,7 +101,32 @@ class AttributionSource(BaseModel):
     mediumId: Optional[str] = None
 
 
-class CustomField(BaseModel):
+class LCCustomFieldModelType(str, Enum):
+    CONTACT = "contact"
+    OPPORTUNITY = "opportunity"
+
+
+class LCCustomField(BaseModel):
+    id: str = Field(..., example="3sv6UEo51C9Bmpo1cKTq")
+    name: str = Field(..., example="pincode")
+    fieldKey: Optional[str] = Field(None, example="contact.pincode")
+    placeholder: Optional[str] = Field(None, example="Pin code")
+    dataType: Optional[str] = Field(None, example="TEXT")
+    position: Optional[int] = Field(None, example=0)
+    picklistOptions: Optional[List[str]] = Field(None, example=["first option"])
+    picklistImageOptions: Optional[List[str]] = Field(default_factory=list)
+    isAllowedCustomOption: Optional[bool] = Field(None, example=False)
+    isMultiFileAllowed: Optional[bool] = Field(None, example=True)
+    maxFileLimit: Optional[int] = Field(None, example=4)
+    locationId: Optional[str] = Field(None, example="3sv6UEo51C9Bmpo1cKTq")
+    model: Optional[LCCustomFieldModelType] = Field(
+        None, example=LCCustomFieldModelType.OPPORTUNITY
+    )
+    # class Config:
+    #     use_enum_values = True
+
+
+class LCCustomFieldMinimal(BaseModel):
     id: str
     value: Optional[Any] = None
 
@@ -140,7 +165,7 @@ class LCContactInfo(BaseModel):
     fullNameLowerCase: Optional[str] = None
     lastNameLowerCase: Optional[str] = None
     lastActivity: Optional[str] = None
-    customFields: Optional[List[CustomField]] = None
+    customFields: Optional[List[LCCustomFieldMinimal]] = list()
     businessId: Optional[str] = None
     attributionSource: Optional[AttributionSource] = None
     lastAttributionSource: Optional[AttributionSource] = None
@@ -148,5 +173,5 @@ class LCContactInfo(BaseModel):
     additionalPhones: Optional[List[str]] = None
 
 
-class ContactResponse(BaseModel):
+class LCContactResponse(BaseModel):
     contact: LCContactInfo

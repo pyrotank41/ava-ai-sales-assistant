@@ -16,14 +16,14 @@ from integrations.lead_connector.leadconnector import (
     LeadConnector,
 )
 
-from integrations.lead_connector.models import LCContactInfo, LCMessageType
+from integrations.lead_connector.models import LCContactInfo, LCMessage, LCMessageType
 from integrations.lead_connector.utils import (
     convert_lcmessage_to_chatmessage,
     filter_messages_by_type,
     get_message_channel,
 )
 from datamodel import ChatMessage
-from services.ava_service import AvaService
+from services.ava_service import AvaService, ContactInfo
 from services.base_message_service import MessagingService
 
 
@@ -32,12 +32,16 @@ class LeadConnectorMessageingService(MessagingService):
         self,
         lead_connector: Optional[LeadConnector] = None,
         location_id: Optional[str] = None,
-    ):
+    ):  
         self.lc = lead_connector
         if lead_connector is None and location_id is not None:
             self.lc = LeadConnector(location_id=location_id)
         elif lead_connector is None and location_id is None:
             raise ValueError("Either lead_connector or location_id must be provided")
+
+        # getting the custom fields for the location
+        self.custom_fields = self.lc.get_custom_fields()
+        self.custom_fields_map = self.lc.get_custom_fields_id_key_mapping()
 
     def process_special_codes(self, message: str, conversation_id: str) -> bool:
         RESET_CONVERSATION_CODE = "*RESET#"
@@ -59,37 +63,116 @@ class LeadConnectorMessageingService(MessagingService):
 
         return True
 
-    def respond_to_inbound_message(self,
-                                   contact_id: str,
-                                   user_message: Optional[str] = None,
-                                   conversation_id: Optional[str] = None):
-
-        # step 1: lets make sure if ava is allowed to engage with the contact
-        contact_info = self.lc.get_contact_info(contact_id)
-        logger.debug(json.dumps(contact_info.model_dump(exclude_none=True), indent=4))
-        if not self._is_ava_permitted_to_engage(contact_info):
-            return
-
-        # step 2: lets get all the messages from the conversation
+    def get_all_messages_from_conversation(
+        self, contact_id: str, conversation_id: Optional[str] = None
+    ):  
+        # TODO: seperation of concern, this method gets all the conversations and also get the latest message type, seperat it.
         if conversation_id is None:
-            conversation_id = self.lc.get_conversation_id(
-                    contact_id=contact_id
-                )
+            conversation_id = self.lc.get_conversation_id(contact_id=contact_id)
         lc_messages = self.lc.get_all_messages(conversation_id)
         recent_message = lc_messages[-1]
-
-        # step 2.1: lets get the message type, so we can filter the messages
-        # based on the source of message
         message_type = LCMessageType(recent_message.type)
+        return lc_messages, message_type
+
+    def get_custom_field_value(self, contact_info: LCContactInfo, field_key:str)->str:
+        # from contact_info get the custom field value using the field_key and custom_fields_map
+        field_id = self.custom_fields_map.get(field_key)
+        customFields = contact_info.customFields
+        for field in customFields:
+            if field.id == field_id:
+                return field.value
+
+    def convert_lc_contact_info_to_contact_info(self, contact_info: LCContactInfo)->ContactInfo:
+        return ContactInfo(
+                id=contact_info.id,
+                full_name=f"{contact_info.firstName} {contact_info.lastName}",
+                first_name=contact_info.firstName,
+                last_name=contact_info.lastName,
+                address=contact_info.address1,
+                city=contact_info.city,
+                state=contact_info.state,
+                timezone=contact_info.timezone,
+                lead_state=self.get_custom_field_value(
+                    contact_info, "contact.lead_state"
+                ),
+                pre_qualification_qa={
+                    "roof_age": self.get_custom_field_value(
+                        contact_info, "contact.how_old_is_your_roof"
+                    ),
+                    "credit_score": self.get_custom_field_value(
+                        contact_info, "contact.is_your_credit_more_than_640"
+                    ),
+                    "average_monthly_electric_bill": self.get_custom_field_value(
+                        contact_info, "contact.what_is_your_average_electricity_bill"
+                    ),
+                    "annual_household_income": self.get_custom_field_value(
+                        contact_info, "contact.household_income"
+                    ),
+                    "homeowner": self.get_custom_field_value(
+                        contact_info, "contact.are_your_a_homeowner"
+                    )
+                    
+                }
+        )
+
+    def engage_with_contact(self, contact_id: str, message_type: LCMessageType = LCMessageType.TYPE_SMS):
+        
+        lc_contact_info = self.lc.get_contact_info(contact_id)
+        if not self._is_ava_permitted_to_engage(lc_contact_info):
+            return
+        conversation_id = self.lc.get_conversation_id(contact_id)
+
+        lc_messages, _ = self.get_all_messages_from_conversation(
+            contact_id=contact_id, conversation_id=conversation_id
+        )
+
+        self.engage_ava(
+            contact_id=contact_id,
+            lc_messages=lc_messages,
+            lc_contact_info=lc_contact_info,
+            message_type=message_type,
+        )
+
+
+    def process_to_inbound_message(
+        self,
+        contact_id: str,
+        conversation_id: Optional[str] = None,
+    ):
+
+        lc_contact_info = self.lc.get_contact_info(contact_id)
+        logger.debug(json.dumps(lc_contact_info.model_dump(exclude_none=True), indent=4))
+
+        # lets make sure if ava is allowed to engage with the contact
+        if not self._is_ava_permitted_to_engage(lc_contact_info):
+            return
+
+        # step 1: lets get all the messages from the conversation
+        lc_messages, message_type = self.get_all_messages_from_conversation(
+            contact_id=contact_id, conversation_id=conversation_id
+        )
+
+        self.engage_ava(
+            contact_id=contact_id,
+            lc_messages=lc_messages,
+            lc_contact_info=lc_contact_info,
+            message_type=message_type,
+        )
+
+    def engage_ava(self, 
+                   contact_id: str,
+                   lc_messages: List[LCMessage],
+                   lc_contact_info: LCContactInfo,
+                   message_type: LCMessageType):
 
         # making sure the message type is supported
         if message_type in NOT_SUPPORTED_MESSAGE_TYPES:
             logger.warning(
-                f"Recieved message type {message_type}, it is currently not supported, skipping this webhook event"
+                f"Recieved message type {message_type}, it is currently not supported, not engaging with ava"
             )
             return
 
-        # filtering message by type se we do not crosscontiminate the messages from different channels
+        # Step 2: filtering message by type se we do not crosscontiminate the messages from different channels
         filtered_lc_messages = filter_messages_by_type(
             messages=lc_messages, allowed_types=[message_type]
         )
@@ -101,32 +184,14 @@ class LeadConnectorMessageingService(MessagingService):
             json.dumps([message.dict() for message in chat_messages], indent=4)
         )
 
-        # validating the chat_messages, only list is allowed
-        if not isinstance(chat_messages, List):
-            raise ValueError("chat_messages should be a list")
-        if not all(isinstance(message, ChatMessage) for message in chat_messages):
-            raise ValueError("chat_messages should be a list of ChatMessage")
-
         # lets send the message to ava to generate a response
-
         ava_service = AvaService()
-        chat_history = chat_messages[0:-1]
 
-        if user_message is not None: # validating if user message is the last message, if not, ava is reaching out further.
-            conversation_user_message = chat_messages[-1]
-            if conversation_user_message.content != user_message:
-                raise ValueError("User message should be the last message in the conversation")
+        generation_state, message = ava_service.respond(
+            conversation_messages=chat_messages,
+            contact_info=self.convert_lc_contact_info_to_contact_info(lc_contact_info),
+        )
 
-            ava_service_resp = ava_service.generate_message( # this call will generate a response to the user message
-                user_message=user_message,
-                chat_history=chat_history,
-                contact_info=contact_info.model_dump(exclude_unset=True)
-            )
-        else:
-            ava_service_resp = ava_service.generate_message(  # this call will generate a response to re-engage the lead
-                chat_history=chat_history, contact_info=contact_info
-            )
-        generation_state, message = ava_service_resp
 
         if generation_state is True:
             # dividing messages by new line se we send them as seperate messages
@@ -137,7 +202,8 @@ class LeadConnectorMessageingService(MessagingService):
                     message=message,
                     message_channel=get_message_channel(message_type),
                 )
-        else: # notify the contact owner and add a task to the contact_id
+
+        else:  # notify the contact owner and add a task to the contact_id
             self.notify_users(message)
 
     def notify_users(self, message: str):
@@ -180,4 +246,11 @@ if __name__ == "__main__":
     # logger.debug(f"contact_id: {contact_id}")
     # logger.debug(json.dumps(lc.get_contact_info(contact_id).model_dump(exclude_none=True), indent=4))
     # logger.debug(json.dumps(lc.get_user_by_location(), indent=4))
-    logger.info(messaging_service.notify_users("This is a test notification message"))
+    # lc_contact_info = messaging_service.lc.get_contact_info("6ygr3QkYGJfEGfNJ2FvD")
+    # contact_info = messaging_service.convert_lc_contact_info_to_contact_info(lc_contact_info)
+    # logger.info(json.dumps(contact_info.dict(), indent=4))
+    # logger.info(messaging_service.notify_users("This is a test notification message"))
+
+    messaging_service.process_to_inbound_message(
+        "zV4uZksd5T66HTqnH6Td"
+    )

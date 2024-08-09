@@ -88,7 +88,7 @@ class AzureOpenAIService:
                 messages=[{"role": "user", "content": prompt}],
                 response_format={"type": "json_object"},
                 max_tokens=50,
-                temperature=0,
+                temperature=0
             )
 
             result = json.loads(response.choices[0].message.content)

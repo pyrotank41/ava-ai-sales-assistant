@@ -7,20 +7,23 @@ from pydantic import BaseModel, Field
 
 from services.lead_connector_messaging_service import LeadConnectorMessageingService
 
+
 class LeadConnectorWHTypeInboundMessage(BaseModel):
     type: str = Field(..., example="InboundMessage")
     locationId: str = Field(..., example="l1C08ntBrFjLS0elLIYU")
-    attachments: Optional[List[str]] = Field(..., default_factory=list(), example=[])
-    body: str = Field(..., example="This is a test message")
-    contactId: str = Field(..., example="cI08i1Bls3iTB9bKgFJh")
-    contentType: str = Field(..., example="text/plain")
-    conversationId: str = Field(..., example="fcanlLgpbQgQhderivVs")
-    dateAdded: datetime = Field(..., example="2021-04-21T11:31:45.750Z")
-    direction: str = Field(..., example="inbound")
-    messageType: str = Field(..., example="SMS")
-    status: str = Field(..., example="delivered")
+    attachments: Optional[List[str]] = list()
+    body: Optional[str] = Field(None, example="This is a test message")
+    contactId: Optional[str] = Field(None, example="cI08i1Bls3iTB9bKgFJh")
+    contentType: Optional[str] = Field(None, example="text/plain")
+    conversationId: Optional[str] = Field(None, example="fcanlLgpbQgQhderivVs")
+    dateAdded: Optional[datetime] = Field(None, example="2021-04-21T11:31:45.750Z")
+    direction: Optional[str] = Field(None, example="inbound")
+    messageType: Optional[str] = Field(None, example="SMS")
+    status: Optional[str] = Field(None, example="delivered")
+
 
 router = APIRouter()
+
 
 def is_lc_location_accepted(location_id: str) -> bool:
     """
@@ -64,23 +67,23 @@ async def leadconnector(request: Request):
     logger.info(f"Leadconnector webhook type {request_type} recieved")
 
     if request_type == "ContactTagUpdate":
-        logger.info(json.dumps(request, indent=4))
+        logger.info(json.dumps(request, indent=4))      
 
     if request_type == "InboundMessage":
         logger.info(json.dumps(request, indent=4))
 
         wh_message = LeadConnectorWHTypeInboundMessage(**request)
-        lc_messaging_service = LeadConnectorMessageingService(location_id=wh_message.locationId)
+        lc_messaging_service = LeadConnectorMessageingService(
+            location_id=wh_message.locationId
+        )
 
         # if the incomming message is a special code, process it and return, dont go further
         if lc_messaging_service.process_special_codes(
             message=wh_message.body, conversation_id=wh_message.conversationId
         ):
             return
-
         # if the message is not a special code, respond to the message
-        lc_messaging_service.respond_to_inbound_message(
-            user_message=wh_message.body,
-            contact_id=wh_message.contactId, 
-            conversation_id=wh_message.conversationId
+        lc_messaging_service.process_to_inbound_message(
+            contact_id=wh_message.contactId,
+            conversation_id=wh_message.conversationId,
         )

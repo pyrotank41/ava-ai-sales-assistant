@@ -8,20 +8,21 @@ import httpx
 from loguru import logger
 
 from utils.env import is_dev_env, load_env_vars
-from integrations.lead_connector.config import (
-    CLIENT_ID, CLIENT_SECRET,TOKEN_URL)
+from integrations.lead_connector.config import CLIENT_ID, CLIENT_SECRET, TOKEN_URL
 from integrations.lead_connector.models import (
-    LCContactInfo, LCMessage,LCMessageType)
+    LCCustomField,
+    LCContactInfo,
+    LCMessage,
+    LCMessageType,
+)
 from integrations.lead_connector.utils import (
-        get_leadconnector_config_file, 
-        message_type_mapping, 
-        save_leadconnector_config
-    )
+    get_leadconnector_config_file,
+    message_type_mapping,
+    save_leadconnector_config,
+)
 
-NOT_SUPPORTED_MESSAGE_TYPES = [
-    LCMessageType.TYPE_CALL,
-    LCMessageType.TYPE_EMAIL
-    ]
+NOT_SUPPORTED_MESSAGE_TYPES = [LCMessageType.TYPE_CALL, LCMessageType.TYPE_EMAIL]
+
 
 class LeadConnector:
 
@@ -38,7 +39,7 @@ class LeadConnector:
             "grant_type": "refresh_token",
             "refresh_token": self.config.refresh_token,
             "client_id": CLIENT_ID,
-            "client_secret": CLIENT_SECRET
+            "client_secret": CLIENT_SECRET,
         }
 
         response = httpx.post(url, data=payload)
@@ -50,7 +51,7 @@ class LeadConnector:
         self.config.token_expiry = datetime.now() + timedelta(
             seconds=int(response_data["expires_in"])
         )
-        
+
         save_leadconnector_config(self.config)
 
     def make_request(self, method, url, **kwargs):
@@ -72,11 +73,13 @@ class LeadConnector:
         return response
 
     def get_user_by_location(self):
-        url = f"https://services.leadconnectorhq.com/users/?locationId={self.location_id}"
+        url = (
+            f"https://services.leadconnectorhq.com/users/?locationId={self.location_id}"
+        )
         response = self.make_request("GET", url)
         if response.status_code == 200:
             return response.json().get("users")
-        else: 
+        else:
             response.raise_for_status()
 
     def get_contact_info(self, contact_id: str) -> LCContactInfo:
@@ -135,17 +138,13 @@ class LeadConnector:
         # add the limit to the query params
         url += f"?limit={limit}"
         response = self.make_request("GET", url)
-
+        logger.debug(f"Get all messages response: {response.json()}")
         resp_dict = dict(dict(response.json()).get("messages"))
         if resp_dict.get("nextPage") is True:
             logger.error("More messages available, please implement pagination")
 
         # sort the messages by dateAdded
         messages = [LCMessage(**message) for message in resp_dict.get("messages")]
-        print("before")
-        print(messages)
-
-        print("after")
         messages = sorted(messages, key=lambda x: x.dateAdded)
         return messages
 
@@ -195,6 +194,22 @@ class LeadConnector:
             logger.info(
                 f"Conversation {conversation_id} deleted. LC response: {response.json()}"
             )
+
+    def get_custom_fields(self) -> List[LCCustomField]:
+        url = f"https://services.leadconnectorhq.com/locations/{self.location_id}/customFields"
+        response = self.make_request("GET", url)
+        data = response.json().get("customFields")
+
+        # Convert the data to list of CustomFieldModelType
+        custom_contact_fields = []
+        for item in data:
+            custom_contact_fields.append(LCCustomField(**item))
+        # CustomFieldModelType
+        return custom_contact_fields
+
+    def get_custom_fields_id_key_mapping(self):
+        custom_fields = self.get_custom_fields()
+        return {field.fieldKey: field.id for field in custom_fields}
 
 
 if __name__ == "__main__":
