@@ -77,7 +77,6 @@ class LeadConnectorMessageingService(MessagingService):
 
     def get_all_messages_from_conversation(
             self, 
-            contact_id: str,
             conversation_id: str
         ) -> List[LCMessage]:
           
@@ -90,7 +89,7 @@ class LeadConnectorMessageingService(MessagingService):
 
         recent_message = lc_messages[-1]
         message_type = LCMessageType(recent_message.type)
-        return lc_messages, message_type
+        return message_type
 
     def get_all_messages(
             self,
@@ -98,7 +97,7 @@ class LeadConnectorMessageingService(MessagingService):
         ) -> List[LCMessage]: 
          
         conversation_id = self.get_conversation_id(contact_id)
-        return self.get_all_messages_from_conversation(contact_id=contact_id,  conversation_id=conversation_id)
+        return self.get_all_messages_from_conversation(conversation_id=conversation_id)
 
     def get_custom_field_value(self, contact_info: LCContactInfo, field_key:str)->str:
         # from contact_info get the custom field value using the field_key and custom_fields_map
@@ -163,19 +162,24 @@ class LeadConnectorMessageingService(MessagingService):
         contact_id: str,
         conversation_id: Optional[str] = None,
     ):
-
+        if contact_id is None:
+            raise ValueError("contact_id must be provided")
+        
+        if conversation_id is None:
+            conversation_id = self.get_conversation_id(contact_id)
+            
         lc_contact_info = self.lc.get_contact_info(contact_id)
         logger.debug(json.dumps(lc_contact_info.model_dump(exclude_none=True), indent=4))
+        
 
         # lets make sure if ava is allowed to engage with the contact
         if not self._is_ava_permitted_to_engage(lc_contact_info):
             return
 
         # step 1: lets get all the messages from the conversation
-        lc_messages = self.get_all_messages_from_conversation(
-            contact_id=contact_id, conversation_id=conversation_id
-        )
+        lc_messages = self.get_all_messages_from_conversation(conversation_id=conversation_id)
         message_type = self.get_latest_message_type(lc_messages)
+        logger.debug(f"Message type: {message_type}")
         if message_type is None:
             logger.warning(f"There must be a mistake here, no messages found for contact {contact_id} to engage with ava, did you mean to use engage_with_contact to start the conversation?")
             return
@@ -278,6 +282,4 @@ if __name__ == "__main__":
     # logger.info(json.dumps(contact_info.dict(), indent=4))
     # logger.info(messaging_service.notify_users("This is a test notification message"))
 
-    messaging_service.process_to_inbound_message(
-        "zV4uZksd5T66HTqnH6Td"
-    )
+    messaging_service.process_to_inbound_message("26cs4MUPgfX8x6NcVZ61")

@@ -63,7 +63,8 @@ class LeadConnector:
         headers = kwargs.pop("headers", {})
         headers["Authorization"] = f"Bearer {self.config.access_token}"
         headers["Version"] = "2021-04-15"
-
+        
+        logger.debug(f"Making request to {url}")
         response = httpx.request(method, url, headers=headers, **kwargs)
 
         if response.status_code == 401:  # Token expired or unauthorized
@@ -134,6 +135,9 @@ class LeadConnector:
     def get_all_messages(
         self, conversation_id: str, limit: int = 50
     ) -> List[LCMessage]:
+        if conversation_id is None:
+            logger.error("Conversation id cannot be empty")
+            return
         url = f"https://services.leadconnectorhq.com/conversations/{conversation_id}/messages"
 
         # add the limit to the query params
@@ -142,7 +146,7 @@ class LeadConnector:
         logger.debug(f"Get all messages response: {response.json()}")
         resp_dict = dict(dict(response.json()).get("messages"))
         if resp_dict.get("nextPage") is True:
-            logger.error("More messages available, please implement pagination")
+            logger.warning("More messages available, please implement pagination")
 
         # sort the messages by dateAdded
         messages = [LCMessage(**message) for message in resp_dict.get("messages")]
