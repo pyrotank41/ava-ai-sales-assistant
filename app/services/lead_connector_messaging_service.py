@@ -14,6 +14,7 @@ from config import PERMISSION_TAG
 from integrations.lead_connector.leadconnector import (
     NOT_SUPPORTED_MESSAGE_TYPES,
     LeadConnector,
+    NoConversationFoundError,
 )
 
 from integrations.lead_connector.models import LCContactInfo, LCMessage, LCMessageType
@@ -63,16 +64,41 @@ class LeadConnectorMessageingService(MessagingService):
 
         return True
 
-    def get_all_messages_from_conversation(
-        self, contact_id: str, conversation_id: Optional[str] = None
-    ):  
-        # TODO: seperation of concern, this method gets all the conversations and also get the latest message type, seperat it.
-        if conversation_id is None:
+    def get_conversation_id(self, contact_id: str):
+        try:
             conversation_id = self.lc.get_conversation_id(contact_id=contact_id)
+        except NoConversationFoundError as e:
+            logger.warning(f"NoConversationFoundError: {e}")
+            conversation_id = self.lc.create_conversation(contact_id=contact_id).get("id")
+        except Exception as e:
+            raise e
+
+        return conversation_id
+
+    def get_all_messages_from_conversation(
+            self, 
+            contact_id: str,
+            conversation_id: str
+        ) -> List[LCMessage]:
+          
         lc_messages = self.lc.get_all_messages(conversation_id)
+        return lc_messages
+
+    def get_latest_message_type(self, lc_messages:List[LCMessage]) -> Optional[LCMessageType]:
+        if len(lc_messages) == 0:
+            return None
+
         recent_message = lc_messages[-1]
         message_type = LCMessageType(recent_message.type)
         return lc_messages, message_type
+
+    def get_all_messages(
+            self,
+            contact_id: str,
+        ) -> List[LCMessage]: 
+         
+        conversation_id = self.get_conversation_id(contact_id)
+        return self.get_all_messages_from_conversation(contact_id=contact_id,  conversation_id=conversation_id)
 
     def get_custom_field_value(self, contact_info: LCContactInfo, field_key:str)->str:
         # from contact_info get the custom field value using the field_key and custom_fields_map
@@ -116,14 +142,13 @@ class LeadConnectorMessageingService(MessagingService):
         )
 
     def engage_with_contact(self, contact_id: str, message_type: LCMessageType = LCMessageType.TYPE_SMS):
-        
+
         lc_contact_info = self.lc.get_contact_info(contact_id)
         if not self._is_ava_permitted_to_engage(lc_contact_info):
             return
-        conversation_id = self.lc.get_conversation_id(contact_id)
 
-        lc_messages, _ = self.get_all_messages_from_conversation(
-            contact_id=contact_id, conversation_id=conversation_id
+        lc_messages = self.get_all_messages(
+            contact_id=contact_id
         )
 
         self.engage_ava(
@@ -132,7 +157,6 @@ class LeadConnectorMessageingService(MessagingService):
             lc_contact_info=lc_contact_info,
             message_type=message_type,
         )
-
 
     def process_to_inbound_message(
         self,
@@ -148,9 +172,13 @@ class LeadConnectorMessageingService(MessagingService):
             return
 
         # step 1: lets get all the messages from the conversation
-        lc_messages, message_type = self.get_all_messages_from_conversation(
+        lc_messages = self.get_all_messages_from_conversation(
             contact_id=contact_id, conversation_id=conversation_id
         )
+        message_type = self.get_latest_message_type(lc_messages)
+        if message_type is None:
+            logger.warning(f"There must be a mistake here, no messages found for contact {contact_id} to engage with ava, did you mean to use engage_with_contact to start the conversation?")
+            return
 
         self.engage_ava(
             contact_id=contact_id,
@@ -192,7 +220,6 @@ class LeadConnectorMessageingService(MessagingService):
             contact_info=self.convert_lc_contact_info_to_contact_info(lc_contact_info),
         )
 
-
         if generation_state is True:
             # dividing messages by new line se we send them as seperate messages
             message_split = message.split("\n\n")
@@ -212,7 +239,7 @@ class LeadConnectorMessageingService(MessagingService):
         # for now we are hardcoding thie user ids to notify the users for testing
         notify_users_contact_id = ["6smJfQjKMu95Y58rIcYl", "n66TIjUfMUrSQCZzypK6"]
         contact_infos: List[LCContactInfo] = []
- 
+
         for contact_id in notify_users_contact_id:
             try:
                 contact_info = self.lc.get_contact_info(contact_id)

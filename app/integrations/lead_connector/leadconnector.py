@@ -23,6 +23,8 @@ from integrations.lead_connector.utils import (
 
 NOT_SUPPORTED_MESSAGE_TYPES = [LCMessageType.TYPE_CALL, LCMessageType.TYPE_EMAIL]
 
+class NoConversationFoundError(Exception):
+    pass
 
 class LeadConnector:
 
@@ -116,8 +118,7 @@ class LeadConnector:
     def get_conversation_id(self, contact_id: str):
         conversations = self.search_conversations(contact_id)
         if len(conversations) == 0:
-            logger.error(f"No conversations found for contact {contact_id}")
-            return None
+            raise NoConversationFoundError(f"No conversations found for contact {contact_id}")
         if len(conversations) > 1:
             logger.error(
                 f"Multiple conversations found for contact {contact_id}. Returning the first one"
@@ -194,18 +195,36 @@ class LeadConnector:
             logger.info(
                 f"Conversation {conversation_id} deleted. LC response: {response.json()}"
             )
+    def create_conversation(self, contact_id: str):
+        # by default ghl doesnt create a conversation, if the conversation is not created, the messages will not be sent
+        url = "https://services.leadconnectorhq.com/conversations/"
+
+        body = {
+            "locationId": self.location_id, 
+            "contactId": contact_id
+            }
+        response = self.make_request("POST", url, json=body)
+        logger.info(f"Create conversation response: {response.json()}")
+        return response.json().get("conversation")
+        
 
     def get_custom_fields(self) -> List[LCCustomField]:
         url = f"https://services.leadconnectorhq.com/locations/{self.location_id}/customFields"
         response = self.make_request("GET", url)
         data = response.json().get("customFields")
-
-        # Convert the data to list of CustomFieldModelType
-        custom_contact_fields = []
-        for item in data:
-            custom_contact_fields.append(LCCustomField(**item))
-        # CustomFieldModelType
-        return custom_contact_fields
+        
+        try:
+            # Convert the data to list of CustomFieldModelType
+            custom_contact_fields = []
+            for item in data:
+                custom_contact_fields.append(LCCustomField(**item))
+            # CustomFieldModelType
+            return custom_contact_fields
+        
+        except Exception as e:
+            logger.error(f"response code: {response.status_code}")
+            logger.error(f"Error while getting custom fields: {str(e)}")
+            raise e
 
     def get_custom_fields_id_key_mapping(self):
         custom_fields = self.get_custom_fields()
