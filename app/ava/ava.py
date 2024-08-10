@@ -242,7 +242,7 @@ class Ava:
         )
 
         chat_resp = self.llm.chat(messages)
-        logger.info(f"AVA response: {chat_resp.message.content}")
+        logger.info(f"AVA response: '{chat_resp.message.content}'")
 
         # validation
         if not isinstance(chat_resp, ChatResponse):
