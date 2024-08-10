@@ -1,13 +1,18 @@
 import os
 from fastapi import Depends, FastAPI
+from fastapi.openapi.utils import get_openapi
+from loguru import logger
+
+## import to load environment variables first before importing our modules 
+from utils.env import load_env_vars
+load_env_vars()
+
 from api import ava
 from api import oauth
 from api import webhook
 from api import lead_connector
-from fastapi.openapi.utils import get_openapi
+
 from security import get_api_key
-from utils.env import load_env_vars
-load_env_vars()
 
 
 app = FastAPI()
