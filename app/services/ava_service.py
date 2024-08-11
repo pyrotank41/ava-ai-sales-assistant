@@ -217,7 +217,7 @@ ACTION: Check conversation with them ASAP and schedule an appointment!
 
 class AvaService:
     def __init__(self):
-        self.ava = Ava(system_message="hello")
+        self.ava = Ava()
         self.openai_service = get_azureopenai_service()
 
     def respond(

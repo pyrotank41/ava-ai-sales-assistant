@@ -5,6 +5,7 @@ import json
 
 from llama_index.core.base.llms.types import ChatMessage, ChatResponse
 from llama_index.core.llms.llm import LLM
+from llama_index.core.postprocessor import SimilarityPostprocessor
 from dotenv import load_dotenv
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -51,27 +52,28 @@ def is_message_an_objection(messages: List[ChatMessage], llm: LLM) -> bool:
     messages_for_obj_check = [
         ChatMessage(
             role="system",
-            content="is the following message an objection?, respond with `True` or `False`",
+            content="Is the following message an objection?, respond in JSON only {is_objection: true or false}",
         )
     ]
 
     # get the last 3 messages from the messages
     messages_for_obj_check += messages[-min(3, len(messages)) :]
+    obj_resp = llm.chat(messages_for_obj_check, response_format={"type": "json_object"})
+    resp_json = json.loads(obj_resp.message.content)
+    is_objection = resp_json.get("is_objection", False)
 
-    obj_resp = llm.chat(messages_for_obj_check)
+    # obj_resp_content = str(obj_resp.message.content).lower().strip()
+    # logger.debug(f"obj resp content: {obj_resp_content}")
 
-    obj_resp_content = str(obj_resp.message.content).lower().strip()
-    logger.debug(f"obj resp content: {obj_resp_content}")
-
-    # validate that the response is one of two values, 'true' or 'flase'
-    if obj_resp_content not in ["true", "false"]:
-        logger.error(
-            f"obj_resp must be either 'True' or 'False', got {obj_resp.message.content}"
-        )
-        raise ValueError("obj_resp must be either 'True' or 'False'")
-    resp = str_to_bool(obj_resp.message.content)
-    logger.info(f"Is message an objection: {resp}")
-    return resp
+    # # validate that the response is one of two values, 'true' or 'flase'
+    # if obj_resp_content not in ["true", "false"]:
+    #     logger.error(
+    #         f"obj_resp must be either 'True' or 'False', got {obj_resp.message.content}"
+    #     )
+    #     raise ValueError("obj_resp must be either 'True' or 'False'")
+    # resp = str_to_bool(obj_resp.message.content)
+    logger.info(f"Is message an objection: {is_objection}")
+    return is_objection
 
 
 def add_obj_handelling_examples_to_system_messsage(
@@ -81,7 +83,6 @@ def add_obj_handelling_examples_to_system_messsage(
     # get objection handelling response
     objection_handelling_resp = retriever.retrieve(user_message.content)
     # postprecessing nodes
-    from llama_index.core.postprocessor import SimilarityPostprocessor
 
     processors = [
         SimilarityPostprocessor(similarity_cutoff=0.5),
@@ -101,7 +102,7 @@ def add_obj_handelling_examples_to_system_messsage(
         )
 
     if len(filtered_nodes) > 0:
-        template = "I found these objections related to the query:\n{objections}"
+        template = "**Objection Handelling Examples**: \n{objections}"
         obj_str = ""
         for i, obj in enumerate(objection_handelling_resp):
             obj_str += (
@@ -109,13 +110,12 @@ def add_obj_handelling_examples_to_system_messsage(
             )
 
         logger.debug(template.format(objections=obj_str))
-        system_message = "\n" + template.format(objections=obj_str)
+        system_message = system_message + "\n\n" + template.format(objections=obj_str)
 
     return system_message
 
-
 class Ava:
-    def __init__(self, system_message: Optional[str] = None):
+    def __init__(self):
         self.llm: LLM = get_azure_openai_client()
         self.objection_handelling_retriver = ObjectionHandelingRetriever(
             similarity_top_k=2
@@ -142,57 +142,13 @@ class Ava:
             logger.error("message_history must be a list of ChatMessage")
             raise ValueError("message_history must be a list of ChatMessage")
 
-    # def chat(
-    #     self,
-    #     user_message: ChatMessage,
-    #     message_history: List[ChatMessage] = [],
-    #     system_message: Optional[str] = None,
-    # ) -> ChatResponse:
-
-    #     if isinstance(user_message, str):
-    #         user_message = ChatMessage(role="user", content=user_message)
-
-    #     # validation
-    #     self._validate_chat_params(user_message, message_history)
-
-    #     # main logic -------------
-    #     logger.info(f"User message: {user_message.content}")
-
-    #     ## check if the user message is a objection.
-    #     all_messages = message_history + [user_message]
-    #     if is_message_an_objection(messages=all_messages, llm=self.llm):
-    #         system_message = add_obj_handelling_examples_to_system_messsage(
-    #             self.objection_handelling_retriver, system_message, user_message
-    #         )
-
-    #     messages = (
-    #         [ChatMessage(role="system", content=system_message)]
-    #         + message_history
-    #         + [user_message]
-    #     )
-    #     logger.debug(
-    #         f"All messages: {json.dumps([message.dict() for message in messages], indent=4)}"
-    #     )
-
-    #     chat_resp = self.llm.chat(messages)
-    #     logger.info(f"AVA response: {chat_resp.message.content}")
-
-    #     # validation
-    #     if not isinstance(chat_resp, ChatResponse):
-    #         logger.error(
-    #             f"chat_resp must be an instance of ChatMessage, got {type(chat_resp)}"
-    #         )
-    #         raise ValueError("chat_resp must be an instance of ChatMessage")
-
-    #     return chat_resp
-
     def respond(
         self,
         conversation_messages: List[ChatMessage] = list(),
         system_message: Optional[str] = None,
     ) -> ChatResponse:
 
-        # validation
+        # validation -------------
         if not isinstance(conversation_messages, list):
             logger.error(
                 f"conversation_history must be a list of ChatMessage, got {type(conversation_messages)}"
@@ -205,44 +161,52 @@ class Ava:
             logger.error("conversation_history must be a list of ChatMessage")
             raise ValueError("conversation_history must be a list of ChatMessage")
 
+        if system_message is None:
+            logger.error("system_message must not be None or empty, got None")
+            raise ValueError("system_message must not be None or empty, got None")
+
+        if system_message == "":
+            logger.error("system_message must not be None or empty, got empty string")
+            raise ValueError(
+                "system_message must not be None or empty, got empty string"
+            )
+
         # main logic -------------
+        if len(conversation_messages) > 0:
 
-        # check if the last message is send by ava, if so, then the current generation of message is
-        # is follow up message generation, and that needs to be handelled differently.
-        # I noticed the follow up messages are not being generated correctly, when just sent as is on azure openai gpt-4o.
-        if len(conversation_messages) > 0 and conversation_messages[-1].role == "assistant":
-            logger.debug("Follow up message generation")
-            # followup mode
-            system_message = (
-                system_message
-                + "you last message:\n"
-                + conversation_messages[-1].content
-                + "\n please create a followup message."
-            )
+            # check if the last message is send by ava, if so, then the current generation of message is
+            # is follow up message generation, and that needs to be handelled differently.
+            # I noticed the follow up messages are not being generated correctly, when just sent as is on azure openai gpt-4o.
+            if conversation_messages[-1].role == "assistant":
+                # followup mode
+                # get last 5 messages from the conversation history, there might be less than 5 messages, so get all of them.
+                conversation_messages = conversation_messages[-min(5, len(conversation_messages)) :]
+                conversation_messages_str = "\n".join([f"{message.role}:{message.content}\n" for message in conversation_messages])
 
-            chat_resp = self.chat_complition(
-                system_message=system_message,
-                conversation_messages=[]
-            )
-            return chat_resp
-
-        # objection are handelled seperately by ava, here system message is appended with sample objection handeling QA, not sure if this is the right way to go about it, but will see.
-        if len(conversation_messages) > 0 and is_message_an_objection(messages=conversation_messages, llm=self.llm):
-            logger.error("Objection handelling mode")
-            user_message = (
-                conversation_messages[-1]
-                if conversation_messages[-1].role == "user"
-                else None
-            )
-            if user_message is not None:
-                # overide suystem message for objection handelling
-                system_message = add_obj_handelling_examples_to_system_messsage(
-                    self.objection_handelling_retriver, system_message, user_message
+                system_message = (
+                    system_message
+                    + "\n\nLast few message from you conversation with the lead:\n"
+                    + conversation_messages_str
+                    + "\n please create a follow-up message."
                 )
-                logger.debug(f"Objection handelling System message: {system_message}")
+                conversation_messages = [] # we dont want to send the conversation history again, as it is in system message already.
+
+            # objection are handelled seperately by ava, here system message is appended with sample objection handeling QA, not sure if this is the right way to go about it, but will see.
+            if is_message_an_objection(messages=conversation_messages, llm=self.llm):
+                user_message = (
+                    conversation_messages[-1]
+                    if conversation_messages[-1].role == "user"
+                    else None
+                )
+                if user_message is not None:
+                    # overide suystem message for objection handelling
+                    system_message = add_obj_handelling_examples_to_system_messsage(
+                        self.objection_handelling_retriver, system_message, user_message
+                    )
+                    logger.warning(f"Objection handelling System message: {system_message}")
 
         chat_resp = self.chat_complition(
-            system_message=system_message, conversation_messages=[]
+            system_message=system_message, conversation_messages=conversation_messages
         )
 
         return chat_resp
@@ -252,7 +216,7 @@ class Ava:
         string_to_add = "Respond in the following JSON format ONLY: \n" + "{ response: 'your message to lead here' }"
         system_message = system_message + "\n" + string_to_add
 
-        logger.warning(system_message)
+        logger.info(f"System message: {system_message}")
 
         if len(conversation_messages) == 0:
             messages = [ChatMessage(role="system", content=system_message)]
@@ -264,7 +228,7 @@ class Ava:
         #     messages, response_format=MessageResponse.model_json_schema()
         # [{"role": message.role, "content": message.content} for message in messages]
         # )
-        
+
         # using direct openai python SDK, reason to choose this is transparency and control on what is being sent to the azure openai service.
         # llamas_index is a wrapper around openai python SDK, and it is not clear what is being sent to the service.
         try:
