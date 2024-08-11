@@ -31,6 +31,7 @@ pytz = "^2024.1"
 azure-keyvault-secrets = "^4.8.0"
 azure-storage-blob = "^12.21.0"
 portkey-ai = "^1.7.2"
+streamlit = "^1.37.1"
 
 
 

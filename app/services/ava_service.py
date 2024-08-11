@@ -137,6 +137,8 @@ class ContactInfo(BaseModel):
     state: Optional[str] = None
     timezone: Optional[str] = None
     lead_state: Optional[str] = None
+    phone_number: Optional[str] = None
+    email: Optional[str] = None
     pre_qualification_qa: Optional[dict] = {}
 
 
@@ -189,6 +191,30 @@ Spatial Information:
     return context
 
 
+def create_message_to_notify_user(contact_info: ContactInfo):
+    pre_qual = contact_info.pre_qualification_qa
+    message = f"""
+🔥 HOT LEAD ALERT 🔥
+Ava: Appointment Request
+
+Name: {contact_info.full_name}
+Phone: {contact_info.phone_number}
+Email: {contact_info.email}
+Address: {contact_info.address}
+Location: {contact_info.city}, {contact_info.state}
+
+Lead Qualifications:
+• Roof: {pre_qual.get('roof_age', 'N/A')}
+• Credit: {pre_qual.get('credit_score', 'N/A')}
+• Electric bill: {pre_qual.get('average_monthly_electric_bill', 'N/A')}
+• Income: {pre_qual.get('annual_household_income', 'N/A')}
+• Homeowner: {pre_qual.get('homeowner', 'N/A')}
+
+ACTION: Check conversation with them ASAP and schedule an appointment!
+    """
+    return message.strip()
+
+
 class AvaService:
     def __init__(self):
         self.ava = Ava(system_message="hello")
@@ -218,12 +244,6 @@ class AvaService:
         if not isinstance(contact_info, ContactInfo):
             logger.error("contact_info must be of type ContactInfo")
 
-        # if len(conversation_messages) > 0:
-        #     most_recent_message = conversation_messages[-1]
-        #     user_message = most_recent_message.content if most_recent_message.role == "user" else None
-        #     chat_history = conversation_messages[:-1]
-
-
         # collecting metadata for the lead
         time_zone = contact_info.timezone
         contact_city = contact_info.city
@@ -241,30 +261,32 @@ class AvaService:
 
         context_message = get_context(contact_info, local_time, lead_state)
 
-
         if lead_state != LeadState.READY_FOR_APPOINTMENT:
             try:
                 system_message = prompt_template.format(context=context_message)
                 logger.debug(f"System message: {system_message}")
+
+                logger.debug(
+                    f"All messages: {json.dumps([message.dict() for message in conversation_messages], indent=4)}"
+                )
 
                 rep = self.ava.respond(
                     conversation_messages=conversation_messages,
                     system_message=system_message,
                 )
                 return (True, rep.message.content)
-               
+
             except Exception as e:
                 logger.error(f"Error generating message: {e}")
                 return (
                     False,
-                    f"An error occurred while generating the message for contact {contact_info.get('id')}.",
+                    f"An error occurred while generating the message for contact {contact_info.id}.",
                 )
         else:
             return (
-                False,
-                f"The lead {contact_info} is ready for an appointment, please schedule one.",
+                False, create_message_to_notify_user(contact_info)
+                
             )
-
 
 if __name__ == "__main__":
 
@@ -280,6 +302,8 @@ if __name__ == "__main__":
         "state": "IL",
         "timezone": None,
         "lead_state": None,
+        "phone_number": "217-555-0164",
+        "email": "test@pragmaticai.com",
         "pre_qualification_qa": {
             "roof_age": "5_to_10_years",
             "credit_score": "680_to_719",
@@ -289,6 +313,7 @@ if __name__ == "__main__":
         },
     }
     dummy_contact = ContactInfo(**dummy_contact)
-    resp = ava_service.respond(dummy_contact, conversation_messages=[])
-    logger.info(resp)
-   
+    # resp = ava_service.respond(dummy_contact, conversation_messages=[])
+    # logger.info(resp)
+
+    logger.info(create_message_to_notify_user(dummy_contact))

@@ -1,6 +1,4 @@
 import json
-import os
-import sys
 from typing import List, Optional
 
 from loguru import logger
@@ -79,7 +77,7 @@ class LeadConnectorMessageingService(MessagingService):
             self, 
             conversation_id: str
         ) -> List[LCMessage]:
-          
+
         lc_messages = self.lc.get_all_messages(conversation_id)
         return lc_messages
 
@@ -95,7 +93,7 @@ class LeadConnectorMessageingService(MessagingService):
             self,
             contact_id: str,
         ) -> List[LCMessage]: 
-         
+
         conversation_id = self.get_conversation_id(contact_id)
         return self.get_all_messages_from_conversation(conversation_id=conversation_id)
 
@@ -164,13 +162,12 @@ class LeadConnectorMessageingService(MessagingService):
     ):
         if contact_id is None:
             raise ValueError("contact_id must be provided")
-        
+
         if conversation_id is None:
             conversation_id = self.get_conversation_id(contact_id)
-            
+
         lc_contact_info = self.lc.get_contact_info(contact_id)
         logger.debug(json.dumps(lc_contact_info.model_dump(exclude_none=True), indent=4))
-        
 
         # lets make sure if ava is allowed to engage with the contact
         if not self._is_ava_permitted_to_engage(lc_contact_info):
@@ -241,7 +238,7 @@ class LeadConnectorMessageingService(MessagingService):
         # notify_users = self.lc.get_user_by_location()
         # makes sure the users have a contact created with their email and phone number in ghl
         # for now we are hardcoding thie user ids to notify the users for testing
-        notify_users_contact_id = ["6smJfQjKMu95Y58rIcYl", "n66TIjUfMUrSQCZzypK6"]
+        notify_users_contact_id = ["n66TIjUfMUrSQCZzypK6"]
         contact_infos: List[LCContactInfo] = []
 
         for contact_id in notify_users_contact_id:
