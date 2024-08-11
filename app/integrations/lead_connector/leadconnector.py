@@ -36,13 +36,13 @@ class LeadConnector:
         if self.location_id is None:
             logger.error("Location id cannot be empty or None")
             raise ValueError("Location id cannot be empty or None")
-        
+
         try:
             self.location_info = self.get_subaccount(self.location_id)
         except Exception as e:
             logger.error(f"Error while getting subaccount: {str(e)}")
             raise e
-        
+
     def get_subaccount(self, location_id):
         if location_id is None:
             logger.error("Location id cannot be empty")
@@ -51,7 +51,6 @@ class LeadConnector:
         response = self.make_request("GET", url)
         self.subaccount = response.json().get("location")
         return self.subaccount
-            
 
     def _refresh_token(self):
         url = TOKEN_URL
@@ -124,6 +123,66 @@ class LeadConnector:
         logger.debug(f"Contact info response: {response}")
         return LCContactInfo(**response.get("contacts")[0])
 
+    def update_contact(self, contact_id: str, data: dict):
+        if contact_id is None:
+            logger.error("Contact id cannot be empty")
+            raise ValueError("Contact id cannot be empty")
+        if data is None:
+            logger.error("Data cannot be empty")
+            raise ValueError("Data cannot be empty")
+
+        url = f"https://services.leadconnectorhq.com/contacts/{contact_id}"
+        response = self.make_request("PUT", url, json=data)
+        logger.debug(f"Update contact response: {response.json()}")
+        return response.json().get("contact")
+
+    def updated_contact_custom_field_value(
+        self,
+        contact_id: str,
+        value: str,
+        custom_field_key: Optional[str] = None,
+        custom_field_id: Optional[str] = None,
+    ):
+        if custom_field_key is None and custom_field_id is None:
+            logger.error("Custom field key or id must be provided")
+            raise ValueError("Custom field key or id must be provided")
+
+        if custom_field_id is None:
+            update_data = {
+                "customFields": [{"key": custom_field_key, "value": value}]
+            }
+        else:
+            update_data = {
+                "customFields": [{"id": custom_field_id, "value": value}]
+            }
+
+        logger.info(f"Updating custom field data:{json.dumps(update_data, indent=4)} ")
+
+        return self.update_contact(contact_id, update_data)
+
+    def update_contact_tags(self, contact_id: str, tags: List[str]):
+        if contact_id is None:
+            logger.error("Contact id cannot be empty")
+            raise ValueError("Contact id cannot be empty")
+        if tags is None:
+            logger.error("Tags cannot be empty")
+            raise ValueError("Tags cannot be empty")
+
+        body = {"tags": tags}
+        return self.update_contact(contact_id, body)
+
+    def add_tag_to_contact(self, contact_id: str, tag: str):
+        contact_info = self.get_contact_info(contact_id)
+        contact_info.tags.append(tag)
+        tags = contact_info.tags
+        return self.update_contact_tags(contact_id=contact_id, tags=tags)
+    
+    def remove_tag_from_contact(self, contact_id: str, tag: str):
+        contact_info = self.get_contact_info(contact_id)
+        contact_info.tags.remove(tag)
+        tags = contact_info.tags
+        return self.update_contact_tags(contact_id=contact_id, tags=tags)
+
     def get_conversation(self, conversation_id):
         url = f"https://services.leadconnectorhq.com/conversations/{conversation_id}"
         response = self.make_request("GET", url)
@@ -147,7 +206,7 @@ class LeadConnector:
         if contact_id is None:
             logger.error("Contact id cannot be empty")
             raise ValueError("Contact id cannot be empty")
-        
+
         conversations = self.search_conversations(contact_id)
 
         if len(conversations) == 0:
@@ -167,12 +226,12 @@ class LeadConnector:
     def get_all_messages(
         self, conversation_id: str, limit: int = 50
     ) -> List[LCMessage]:
-        
+
         if conversation_id is None:
             raise ValueError("Conversation id cannot be empty")
         if isinstance(limit, int) is False:
             raise ValueError("Limit must be an integer")
-        
+
         url = f"https://services.leadconnectorhq.com/conversations/{conversation_id}/messages"
 
         # add the limit to the query params
@@ -189,7 +248,7 @@ class LeadConnector:
         return messages
 
     def send_message(self, contact_id: str, message: str, message_channel: str):
-        
+
         if message_channel is None:
             logger.error(f"Invalid message channel {message_channel}")
             raise ValueError("Message channel cannot be None")
@@ -225,11 +284,11 @@ class LeadConnector:
             return response.json().get("message")
 
     def delete_conversation(self, conversation_id: str):
-        
+
         if conversation_id is None:
             logger.error("Conversation id cannot be empty")
             raise ValueError("Conversation id cannot be empty")
-        
+
         url = f"https://services.leadconnectorhq.com/conversations/{conversation_id}"
         response = self.make_request("DELETE", url)
         if int(response.status_code) not in [200, 201]:
@@ -241,13 +300,13 @@ class LeadConnector:
                 f"Conversation {conversation_id} deleted. LC response: {response.json()}"
             )
             return response.json()
-        
+
     def create_conversation(self, contact_id: str):
-        
+
         if contact_id is None:
             logger.error("Contact id cannot be empty")
             raise ValueError("Contact id cannot be empty")
-        
+
         # by default ghl doesnt create a conversation, if the conversation is not created, the messages will not be sent
         url = "https://services.leadconnectorhq.com/conversations/"
 
@@ -260,7 +319,7 @@ class LeadConnector:
         return response.json().get("conversation")
 
     def get_custom_fields(self) -> List[LCCustomField]:
-        
+
         url = f"https://services.leadconnectorhq.com/locations/{self.location_id}/customFields"
         response = self.make_request("GET", url)
         data = response.json().get("customFields")
@@ -293,5 +352,12 @@ if __name__ == "__main__":
     # logger.debug(json.dumps(conversations, indent=4))
     # logger.debug(f"conversation_id: {lc.get_conversation_id(contact_id=CONTACT_ID)}")
     load_env_vars()
-    logger.debug(json.dumps(lc.get_user_by_location(), indent=4))
-    logger.debug(lc.get_contact_by_email("karankochar13@gmail.com"))
+    # logger.debug(json.dumps(lc.get_user_by_location(), indent=4))
+    # logger.debug(lc.get_contact_by_email("karankochar13@gmail.com"))
+
+    # test add and remove tag
+    #
+    print(lc.add_tag_to_contact("mmprUyomgvUt0m3R5PLu", "test_tag"))
+    print(lc.add_tag_to_contact("mmprUyomgvUt0m3R5PLu", "test_tag"))
+
+    # print(lc.remove_tag_from_contact("mmprUyomgvUt0m3R5PLu", "test_tag"))

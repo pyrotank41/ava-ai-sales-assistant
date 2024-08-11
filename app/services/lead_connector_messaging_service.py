@@ -8,7 +8,7 @@ from loguru import logger
 # logger.debug(f"Adding path to system path: {path}")
 # sys.path.append(path)
 
-from config import PERMISSION_TAG
+from config import MAX_CONVERSATION_COUNT, NOTIFY_MAX_CONVERSATION_LIMIT_REACHED_TAG, PERMISSION_TAG
 from integrations.lead_connector.leadconnector import (
     NOT_SUPPORTED_MESSAGE_TYPES,
     LeadConnector,
@@ -99,11 +99,14 @@ class LeadConnectorMessageingService(MessagingService):
 
     def get_custom_field_value(self, contact_info: LCContactInfo, field_key:str)->str:
         # from contact_info get the custom field value using the field_key and custom_fields_map
-        field_id = self.custom_fields_map.get(field_key)
+        field_id = self.get_custom_field_id(field_key)
         customFields = contact_info.customFields
         for field in customFields:
             if field.id == field_id:
                 return field.value
+
+    def get_custom_field_id(self, field_key:str)->str:
+        return self.custom_fields_map.get(field_key)
 
     def convert_lc_contact_info_to_contact_info(self, contact_info: LCContactInfo)->ContactInfo:
         return ContactInfo(
@@ -139,15 +142,22 @@ class LeadConnectorMessageingService(MessagingService):
         )
 
     def engage_with_contact(self, contact_id: str, message_type: LCMessageType = LCMessageType.TYPE_SMS):
-
+        
+        # validations ----------------
+        if contact_id is None:
+            raise ValueError("contact_id must be provided")
+        
+        # Check if ava is allowed to engage with the contact ---------------------------------
         lc_contact_info = self.lc.get_contact_info(contact_id)
+        
         if not self._is_ava_permitted_to_engage(lc_contact_info):
             return
-
+        # Ava is allowed to engage with the contact, lets engage with the contact ----------------
+        # get all the messages from the contact
         lc_messages = self.get_all_messages(
             contact_id=contact_id
         )
-
+        # engage ava with the contact
         self.engage_ava(
             contact_id=contact_id,
             lc_messages=lc_messages,
@@ -159,7 +169,8 @@ class LeadConnectorMessageingService(MessagingService):
         self,
         contact_id: str,
         conversation_id: Optional[str] = None,
-    ):
+    ):  
+        # validations ----------------
         if contact_id is None:
             raise ValueError("contact_id must be provided")
 
@@ -169,10 +180,33 @@ class LeadConnectorMessageingService(MessagingService):
         lc_contact_info = self.lc.get_contact_info(contact_id)
         logger.debug(json.dumps(lc_contact_info.model_dump(exclude_none=True), indent=4))
 
-        # lets make sure if ava is allowed to engage with the contact
+        # Check if ava is allowed to engage with the contact ---------------------------------
+        # Check 1: lets make sure if ava is allowed to engage with the contact
         if not self._is_ava_permitted_to_engage(lc_contact_info):
             return
 
+        # Check 2: lets check if the conversation count is less than MAX_CONVERSATION_COUNT
+        if self.get_number_of_interactions(lc_contact_info) >= MAX_CONVERSATION_COUNT:
+            
+            # check if the user has been notified in the past about the conversation limit
+            if NOTIFY_MAX_CONVERSATION_LIMIT_REACHED_TAG in lc_contact_info.tags:
+                logger.info(f"MAX conversation limit reached for the contact {lc_contact_info.name},and the User has been notified in the past")
+                return
+            # notify the user about the conversation limit, as the user has not been notified in the past
+            self.notify_users(
+                f"Conversation limit reached for contact {lc_contact_info.name}\n{lc_contact_info.phone}\n{lc_contact_info.email}, please interact with the contact or reset the conter"
+            )
+            
+            # add the tag to the contact so we do not notify the user again
+            self.lc.add_tag_to_contact(
+                contact_id=contact_id,
+                tag=NOTIFY_MAX_CONVERSATION_LIMIT_REACHED_TAG
+            )
+            
+            # return as we do not want to engage with the contact
+            return
+        # Ava is allowed to engage with the contact, lets engage with the contact ----------------
+        
         # step 1: lets get all the messages from the conversation
         lc_messages = self.get_all_messages_from_conversation(conversation_id=conversation_id)
         message_type = self.get_latest_message_type(lc_messages)
@@ -180,7 +214,8 @@ class LeadConnectorMessageingService(MessagingService):
         if message_type is None:
             logger.warning(f"There must be a mistake here, no messages found for contact {contact_id} to engage with ava, did you mean to use engage_with_contact to start the conversation?")
             return
-
+        
+        # stpe 2: lets engage ava with the contact
         self.engage_ava(
             contact_id=contact_id,
             lc_messages=lc_messages,
@@ -222,6 +257,7 @@ class LeadConnectorMessageingService(MessagingService):
         )
 
         if generation_state is True:
+
             # dividing messages by new line se we send them as seperate messages
             message_split = message.split("\n\n")
             for message in message_split:
@@ -231,9 +267,98 @@ class LeadConnectorMessageingService(MessagingService):
                     message_channel=get_message_channel(message_type),
                 )
 
+            # adding ava_interacted tag to the contact
+            self.add_ava_interacted_tag(lc_contact_info)
+
+            # increment the message count for the conact
+            self.increment_message_counter(lc_contact_info)
+
         else:  # notify the contact owner and add a task to the contact_id
             self.notify_users(message)
 
+    def get_number_of_interactions(self, contact_info: LCContactInfo):
+        custom_field_id = self.get_custom_field_id("contact.number_of_interactions")
+        if custom_field_id is not None:
+            # get the current value of the custom field
+            current_value = self.get_custom_field_value(
+                contact_info, "contact.number_of_interactions"
+            )
+
+            try:
+                current_value = int(current_value)
+            except TypeError:
+                current_value = 0
+                self.lc.updated_contact_custom_field_value(
+                    contact_id=contact_info.id,
+                    custom_field_id=custom_field_id,
+                    value=str(current_value),
+                )
+
+            return current_value
+
+        raise ValueError("Custom field 'contact.number_of_interactions' not found")
+
+    def increment_message_counter(self, contact_info: LCContactInfo):
+        """
+        Increments the message counter for a given contact.
+        
+        this helps us keep track of the number of interactions ava had with the contact
+        
+        Args:
+            contact_info (LCContactInfo): The contact information.
+        Returns:
+            LCContactInfo: The updated contact information with the incremented message counter.
+        """
+        custom_field_id = self.get_custom_field_id("contact.number_of_interactions")
+        if custom_field_id is not None:
+            # get the current value of the custom field
+            current_value = self.get_custom_field_value(
+                contact_info, "contact.number_of_interactions"
+            )
+
+            try:
+                current_value = int(current_value)
+            except ValueError:
+                current_value = 0
+            except TypeError:
+                current_value = 0
+
+            current_value += 1
+
+            logger.info(f"incrementing custom field value: {current_value}")
+
+            # update the custom field
+            resp = self.lc.updated_contact_custom_field_value(
+                contact_id=contact_info.id,
+                custom_field_id=custom_field_id,
+                value=str(current_value),
+            )
+            updated_lc_contact_info = LCContactInfo(**resp)
+            logger.debug(f"incremented custom field value: {updated_lc_contact_info.customFields}")
+            return updated_lc_contact_info
+
+    def add_ava_interacted_tag(self, contact_info: LCContactInfo):
+        """Function to add the tag ava_interacted to the contact.
+
+        This function helps us track the contacts that have interacted with ava.
+
+        Args:
+            contact_info (LCContactInfo): The contact information.
+
+        Returns:
+            None
+        """
+        """function to add the tag ava_interacted to the contact, this helps us with tracking the contacts that have interacted with ava"""
+        # adding the tag to the contact
+        if "ava_interacted" not in contact_info.tags:
+            self.lc.add_tag_to_contact(
+                contact_id=contact_info.id,
+                tag="ava_interacted"
+            ) 
+            logger.debug(f"Added tag 'ava_interacted' to contact {contact_info.id}")
+            return
+        logger.debug(f"Tag 'ava_interacted' already exists for contact {contact_info.id}, skipping this operation")
+   
     def notify_users(self, message: str):
         # notify_users = self.lc.get_user_by_location()
         # makes sure the users have a contact created with their email and phone number in ghl
@@ -279,4 +404,15 @@ if __name__ == "__main__":
     # logger.info(json.dumps(contact_info.dict(), indent=4))
     # logger.info(messaging_service.notify_users("This is a test notification message"))
 
-    messaging_service.process_to_inbound_message("26cs4MUPgfX8x6NcVZ61")
+    # messaging_service.process_to_inbound_message("26cs4MUPgfX8x6NcVZ61")
+
+    # testing the increment message counter
+    contact_id = "mmprUyomgvUt0m3R5PLu"
+    lc_contact_info = messaging_service.lc.get_contact_info(contact_id)
+    # messaging_service.increment_message_counter(lc_contact_info)
+
+    # testing get number of interactions
+    # print(messaging_service.get_number_of_interactions(lc_contact_info))
+    
+    # testing add_ava_interacted_tag
+    print(messaging_service.add_ava_interacted_tag(lc_contact_info))
