@@ -261,23 +261,26 @@ class AvaService:
 
         context_message = get_context(contact_info, local_time, lead_state)
 
-
         if lead_state != LeadState.READY_FOR_APPOINTMENT:
             try:
                 system_message = prompt_template.format(context=context_message)
                 logger.debug(f"System message: {system_message}")
+
+                logger.debug(
+                    f"All messages: {json.dumps([message.dict() for message in conversation_messages], indent=4)}"
+                )
 
                 rep = self.ava.respond(
                     conversation_messages=conversation_messages,
                     system_message=system_message,
                 )
                 return (True, rep.message.content)
-               
+
             except Exception as e:
                 logger.error(f"Error generating message: {e}")
                 return (
                     False,
-                    f"An error occurred while generating the message for contact {contact_info.get('id')}.",
+                    f"An error occurred while generating the message for contact {contact_info.id}.",
                 )
         else:
             return (

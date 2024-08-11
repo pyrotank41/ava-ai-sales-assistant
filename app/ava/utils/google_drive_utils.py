@@ -61,7 +61,7 @@ def get_google_sheets_data(sheet_id: str, api_key: str) -> List[GoogleSheetsData
     # Check the response
     if response_metadata.status_code == 200:
         metadata = response_metadata.json()
-        logger.debug(f"metadata: {metadata}")
+        # logger.debug(f"metadata: {metadata}")
         sheets = metadata.get("sheets", [])
         logger.debug(f"sheets: {sheets}")
 
@@ -85,7 +85,9 @@ def get_google_sheets_data(sheet_id: str, api_key: str) -> List[GoogleSheetsData
                 logger.error(
                     f"Error fetching data for sheet {sheet_title}: {response_data.status_code}"
                 )
-        logger.debug(f"\n{all_data}")
+        df = all_data[0].data_frame
+        logger.debug(f"\n{df.head()}")
+        # logger.debug(f"\n{type(all_data[0].data_frame)}")
 
         return all_data
     else:

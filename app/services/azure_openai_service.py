@@ -36,6 +36,9 @@ class AzureOpenAIService:
         )
         self.chat_model = chat_model
         self.analysis_model = analysis_model
+        
+    def get_client(self):
+        return self.client
 
     def health_check(self, model: str) -> str:
         try:
@@ -138,4 +141,31 @@ def get_azureopenai_service():
     )
     
     return service
-    
+
+if __name__ == "__main__":
+    from pydantic import BaseModel
+    from openai import OpenAI
+
+    client = get_azureopenai_service().client
+
+    class Step(BaseModel):
+        explanation: str
+        output: str
+
+    class MathReasoning(BaseModel):
+        steps: list[Step]
+        final_answer: str
+
+    completion = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a helpful math tutor. Guide the user through the solution step by step. respond in json format. {'response': 'your response here'}",
+            },
+            {"role": "user", "content": ""},
+        ],
+        response_format={"type": "json_object"},
+    )
+
+    print(completion.choices[0].message.content)
