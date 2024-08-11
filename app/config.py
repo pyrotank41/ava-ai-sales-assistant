@@ -15,3 +15,5 @@ from pydantic_settings import BaseSettings
 
 
 PERMISSION_TAG = "sunny"
+MAX_CONVERSATION_COUNT = "15"
+NOTIFY_MAX_CONVERSATION_LIMIT_REACHED_TAG="notifyed_user_max_conv"
