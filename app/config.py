@@ -16,4 +16,10 @@ from pydantic_settings import BaseSettings
 
 PERMISSION_TAG = "sunny"
 MAX_CONVERSATION_COUNT = 15
-NOTIFY_MAX_CONVERSATION_LIMIT_REACHED_TAG="notifyed_user_max_conv"
+
+AVA_ENGAGED_TAG = "AVA-Engaged"
+AVA_INTERACTED_TAG = "AVA-Interacted"
+AVA_MAX_SMS_CONVO_REACHED = "AVA-MaxSMSConvoReached"
+
+GHL_CUSTOM_FIELD_NUMBER_OF_INTERACTION_KEY = "contact.number_of_interactions"
+GHL_CUSTOM_FIELD_LEAD_STATE_KEY = "contact.lead_state"

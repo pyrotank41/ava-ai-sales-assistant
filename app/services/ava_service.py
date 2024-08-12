@@ -214,6 +214,10 @@ ACTION: Check conversation with them ASAP and schedule an appointment!
     """
     return message.strip()
 
+class AVAServiceRespondResponse(BaseModel):
+    content: str
+    is_generated: bool
+    lead_state: LeadState
 
 class AvaService:
     def __init__(self):
@@ -224,7 +228,7 @@ class AvaService:
         self,
         contact_info: ContactInfo,
         conversation_messages: List[ChatMessage] = list(),
-    ) -> Tuple[bool, str]:
+    ) -> AVAServiceRespondResponse:
         """
         Generates a message for a lead based on their contact information, chat history, and current state.
 
@@ -274,19 +278,24 @@ class AvaService:
                     conversation_messages=conversation_messages,
                     system_message=system_message,
                 )
-                return (True, rep.message.content)
+                return AVAServiceRespondResponse(content=rep.message.content,
+                                                 is_generated=True,
+                                                 lead_state=lead_state)
 
             except Exception as e:
                 logger.error(f"Error generating message: {e}")
-                return (
-                    False,
-                    f"An error occurred while generating the message for contact {contact_info.id}.",
+                return AVAServiceRespondResponse(
+                    content=f"An error occurred while generating the message for contact {contact_info.id}: {contact_info.full_name}.",
+                    is_generated=False,
+                    lead_state=lead_state,
                 )
         else:
-            return (
-                False, create_message_to_notify_user(contact_info)
-                
-            )
+            return AVAServiceRespondResponse(
+                    content=create_message_to_notify_user(contact_info),
+                    is_generated=False,
+                    lead_state=lead_state
+                )
+
 
 if __name__ == "__main__":
 
