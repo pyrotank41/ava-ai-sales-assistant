@@ -5,6 +5,8 @@ from fastapi import APIRouter, Request
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from config import AGENT_ENGAGED_TAG
+from integrations.lead_connector.leadconnector import LeadConnector
 from services.lead_connector_messaging_service import LeadConnectorMessageingService
 
 
@@ -68,6 +70,16 @@ async def leadconnector(request: Request):
 
     if request_type == "ContactTagUpdate":
         logger.info(json.dumps(request, indent=4))      
+
+    if request_type == "OutboundMessage":
+        leadconnector = LeadConnector(location_id=request["locationId"])
+        contact_id = request["contactId"]
+        message_type = request["messageType"]
+
+        if message_type == "SMS": 
+            # this is so that we know that agnet responded the contact,
+            # we will use this tag later to nor respond to the contact
+            leadconnector.add_tag_to_contact(contact_id, AGENT_ENGAGED_TAG)
 
     if request_type == "InboundMessage":
         logger.info(json.dumps(request, indent=4))
