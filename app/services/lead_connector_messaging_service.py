@@ -61,7 +61,7 @@ class LeadConnectorMessageingService(MessagingService):
                 f"Contact {contact_info.id} does not have the permission tag '{PERMISSION_TAG}', cannot engage with the contact"
             )
             return False
-        if AGENT_ENGAGED_TAG not in contact_info.tags:
+        if AGENT_ENGAGED_TAG in contact_info.tags:
             logger.info(
                 f"Contact {contact_info.id} has the permission tag '{PERMISSION_TAG}', but the contact has been engaged by an agent, cannot engage with the contact"
             )
