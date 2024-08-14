@@ -18,6 +18,7 @@ from services.ava_service import AvaService, ContactInfo
 from services.base_message_service import MessagingService
 
 from config import (
+    AGENT_ENGAGED_TAG,
     AVA_INTERACTED_TAG,
     GHL_CUSTOM_FIELD_LEAD_STATE_KEY,
     GHL_CUSTOM_FIELD_NUMBER_OF_INTERACTION_KEY,
@@ -60,6 +61,10 @@ class LeadConnectorMessageingService(MessagingService):
                 f"Contact {contact_info.id} does not have the permission tag '{PERMISSION_TAG}', cannot engage with the contact"
             )
             return False
+        if AGENT_ENGAGED_TAG not in contact_info.tags:
+            logger.info(
+                f"Contact {contact_info.id} has the permission tag '{PERMISSION_TAG}', but the contact has been engaged by an agent, cannot engage with the contact"
+            )
 
         return True
 
