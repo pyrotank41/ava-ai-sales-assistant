@@ -95,7 +95,7 @@ class LeadConnectorMessageingService(MessagingService):
             return None
 
         recent_message = lc_messages[-1]
-        message_type = LCMessageType(recent_message.type)
+        message_type = LCMessageType(recent_message.messageType)
         return message_type
 
     def get_all_messages(

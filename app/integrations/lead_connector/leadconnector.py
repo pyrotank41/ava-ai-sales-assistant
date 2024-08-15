@@ -15,6 +15,7 @@ from integrations.lead_connector.models import (
 )
 from integrations.lead_connector.utils import (
     get_leadconnector_config_file,
+    get_message_channel,
     message_type_mapping,
     save_leadconnector_config,
 )
@@ -357,7 +358,15 @@ if __name__ == "__main__":
 
     # test add and remove tag
     #
-    print(lc.add_tag_to_contact("mmprUyomgvUt0m3R5PLu", "test_tag"))
-    print(lc.add_tag_to_contact("mmprUyomgvUt0m3R5PLu", "test_tag"))
+    # print(lc.add_tag_to_contact("mmprUyomgvUt0m3R5PLu", "test_tag"))
+    # print(lc.add_tag_to_contact("mmprUyomgvUt0m3R5PLu", "test_tag"))
+
+    contact_id = "MpgcABL9Hc3nUd0fTWwY"
+    resp = lc.get_all_messages(conversation_id=lc.get_conversation_id(contact_id=contact_id))
+
+    for message in resp:
+        message_type = message.messageType
+        logger.info(message.body)
+        logger.debug(get_message_channel(message_type))
 
     # print(lc.remove_tag_from_contact("mmprUyomgvUt0m3R5PLu", "test_tag"))

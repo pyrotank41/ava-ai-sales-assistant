@@ -97,7 +97,7 @@ def get_message_channel(message_type: LCMessageType) -> str:
     message_channel = message_type_mapping.get(message_type)
     if message_channel is None:
         logger.error(f"Invalid message type {message_type}")
-        return None
+        return "Custom"
     return message_channel
 
 
@@ -317,7 +317,7 @@ def get_auth_url(scope=None, state="6969"):
 def filter_messages_by_type(
     messages: List[LCMessage], allowed_types: List[LCMessageType]
 ) -> List[LCMessage]:
-    return [msg for msg in messages if msg.type in allowed_types]
+    return [msg for msg in messages if msg.messageType in allowed_types]
 
 
 def convert_lcmessage_to_chatmessage(messages: List[LCMessage]) -> List[ChatMessage]:
