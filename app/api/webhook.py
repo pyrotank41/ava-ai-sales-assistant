@@ -54,8 +54,8 @@ def is_lc_location_accepted(location_id: str) -> bool:
 
 
 @router.post("/leadconnector")
-async def leadconnector(request: Request):
-    request = await request.json()
+def leadconnector(request: Request):
+    request = request.json()
     logger.info(f"webhooked by leadconnector location id: {request['locationId']}")
 
     # if not is_lc_location_accepted(request["locationId"]):
